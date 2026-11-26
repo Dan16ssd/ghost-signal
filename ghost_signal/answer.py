@@ -3,15 +3,16 @@
 from __future__ import annotations
 
 import logging
+import time
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from functools import lru_cache
 from urllib.parse import unquote
 
 from . import lang as L
-from . import countries, reminders, sms, sources, store
+from . import countries, meds, reminders, sms, sources, store
 from .config import settings
 
 log = logging.getLogger(__name__)
@@ -28,6 +29,11 @@ REMIND_WORDS = {"remind", "reminder", "ເຕືອນ", "ذكرني", "ذكّر
 # Carrier-standard opt-out / opt-in words (Twilio uses the same ones), plus local ones.
 STOP_WORDS = {"stop", "stopall", "unsubscribe", "end", "quit", "cancel", "ຢຸດ", "توقف", "إيقاف", "الغاء", "إلغاء"}
 START_WORDS = {"start", "unstop", "ເລີ່ມ", "ابدأ", "ابدا"}
+MEDS_WORDS = {"meds", "medicine", "medicines", "pills", "ຢາ", "دواء", "الدواء", "medicina", "medicamento",
+              "médicament", "dawa", "obat", "दवा"}
+TAKEN_WORDS = {"1", "taken", "done", "ok", "ກິນແລ້ວ", "تم", "اخذته", "أخذته"}
+YES_WORDS = {"yes", "y", "ໂດຍ", "ແມ່ນ", "نعم", "sí", "si", "oui", "sim", "ndiyo", "ya", "हाँ", "haan"}
+PHONE = re.compile(r"^\+\d{8,15}$")
 DEFAULT_RATE_TARGETS = ["EGP", "LAK", "THB", "EUR"]
 CURRENCY = re.compile(r"^[A-Za-z]{3}$")
 
@@ -48,7 +54,8 @@ Reply with the query only, nothing else."""
 class Reply:
     text: str
     lang: str
-    kind: str  # help | weather | rate | answer | not_found | error | remind | stop | start | silent
+    kind: str  # help | weather | rate | answer | not_found | error | remind | meds | family | stop | start | silent
+    outbox: list[tuple[str, str]] = field(default_factory=list)  # extra SMS to send: (to, text)
 
     @property
     def segments(self) -> int:
@@ -223,6 +230,112 @@ def _remind(args: list[str], sender: str, language: str, country: countries.Coun
                  language, "remind")
 
 
+def call_voice(language: str) -> tuple[dict[str, str], str, str]:
+    """(call script, Twilio <Say> language, voice) for a person's language."""
+    spoken = meds.voice_language(language)
+    say_lang, voice = meds.VOICES.get(language, meds.VOICES["en"])
+    if spoken in meds.SCRIPT:
+        return meds.SCRIPT[spoken], say_lang, voice
+    if settings.use_llm and language in meds.VOICES:
+        script = {k: _translated_line(v, spoken) for k, v in meds.SCRIPT["en"].items()}
+        if all(script.values()):
+            return script, say_lang, voice
+    return meds.SCRIPT["en"], *meds.VOICES["en"]
+
+
+@lru_cache(maxsize=256)
+def _translated_line(text: str, language: str) -> str:
+    try:
+        out = _claude(f"Translate this phone-call sentence into the language with code '{language}'. "
+                      "Keep 'Ghost Signal' as it is. Reply with the translation only.", text, max_tokens=500)
+    except Exception:  # noqa: BLE001
+        log.exception("call script translation failed")
+        return ""
+    return re.sub(r"\s+", " ", out).strip() if out else ""
+
+
+def _spoken_what(what: str, language: str) -> str:
+    """The medicine name as the call voice can say it (Lao is spoken by a Thai voice)."""
+    target = meds.voice_language(language)
+    if target == language:
+        return what
+    if not settings.use_llm:
+        return ""  # the voice cannot read this script; the call still says it is medicine time
+    try:
+        out = _claude(f"Write this medicine name in the language with code '{target}' so a "
+                      f"text-to-speech voice can read it. Reply with the words only.", what, max_tokens=300)
+    except Exception:  # noqa: BLE001
+        log.exception("medicine name translation failed")
+        return ""
+    return (out or "").strip()[:80]
+
+
+def _meds(args: list[str], sender: str, language: str, country: countries.Country | None) -> Reply:
+    sub = args[0].lower() if args else ""
+    if sub in {"list", ""}:
+        items = store.meds_of(sender)
+        if not items:
+            return Reply(message("meds_none", language), language, "meds")
+        lines = " ".join(f"{i}) {m.times.replace(',', ' ')} {m.what}" for i, m in enumerate(items, 1))
+        return Reply(sms.fit(f"{message('meds_list', language)} {lines}", settings.max_segments), language, "meds")
+    if sub in {"del", "delete", "stop", "x"} and len(args) > 1 and args[1].isdigit():
+        items = store.meds_of(sender)
+        n = int(args[1])
+        if not 1 <= n <= len(items):
+            return Reply(message("meds_none", language), language, "meds")
+        store.stop_med(items[n - 1].id)
+        return Reply(f"{message('meds_deleted', language)} {items[n - 1].what}", language, "meds")
+    if sub in {"family", "fam", "عائلة", "ຄອບຄົວ"}:
+        contact = args[1] if len(args) > 1 else ""
+        if not PHONE.match(contact) or contact == sender:
+            return Reply(message("family_bad", language), language, "family")
+        store.invite_family(sender, contact)
+        c_country = countries.from_number(contact)
+        c_lang = c_country.lang if c_country else language
+        invite = f"{message('family_invite', c_lang)} {sender}"
+        return Reply(message("family_set", language), language, "family", outbox=[(contact, invite)])
+    if len(store.meds_of(sender)) >= meds.MAX_MEDS:
+        return Reply(message("meds_full", language), language, "meds")
+
+    text = " ".join(args)
+    tz = countries.timezone(country)
+    parsed = meds.parse(text)
+    soon = reminders._IN.search(text)
+    if parsed is None and soon:  # "MEDS in 1 min pill": first call soon, then daily at that time
+        due, what = reminders.parse(text, datetime.now(ZoneInfo(tz))) or (None, "")
+        if due is not None and what:
+            parsed = ([due.strftime("%H:%M")], what[:80])
+    if parsed is None and settings.use_llm:
+        try:
+            parsed = meds.parse_ai_reply(_claude(meds.AI_PROMPT, text, max_tokens=500))
+        except Exception:  # noqa: BLE001
+            log.exception("meds AI parse failed")
+    if parsed is None:
+        return Reply(message("meds_bad", language), language, "meds")
+    times, what = parsed
+    med_id = store.add_med(sender, ",".join(times), what, _spoken_what(what, language), language, tz)
+    store.add_dose(med_id, meds.next_due(",".join(times), tz, time.time()))
+    key = "meds_set" if meds.can_call(language) else "meds_sms"
+    zone = "" if country else " UTC"
+    return Reply(sms.fit(f"{message(key, language)} {' '.join(times)}{zone}: {what}", settings.max_segments),
+                 language, "meds")
+
+
+def confirm_dose(dose_id: int) -> None:
+    """The person pressed or texted 1: this dose is taken; plan the next one."""
+    d = store.dose(dose_id)
+    if d is None or d.state != "waiting":
+        return
+    finish_dose(d, "confirmed")
+
+
+def finish_dose(d: store.Dose, state: str) -> None:
+    store.set_dose_state(d.id, state)
+    m = store.med(d.med_id)
+    if m is not None:
+        store.add_dose(m.id, meds.next_due(m.times, m.tz, max(d.due, time.time())))
+
+
 def due_text(r: store.Reminder) -> str:
     """The SMS sent when a reminder is due."""
     return sms.fit(f"{message('reminder_due', r.lang)} {r.what}", settings.max_segments)
@@ -247,10 +360,23 @@ def handle(text: str, sender: str | None = None, country: countries.Country | No
     if store.opted_out(sender):
         return Reply("", language, "silent")
 
+    # A family contact accepting, or a person confirming a medicine dose by SMS.
+    if first in YES_WORDS and len(words) == 1 and store.pending_invites(sender):
+        store.accept_family(sender)
+        return Reply(message("family_ok", language), language, "family")
+    if first in TAKEN_WORDS and len(words) <= 2:
+        ringing = store.ringing_dose(sender)
+        if ringing is not None:
+            confirm_dose(ringing.id)
+            return Reply(message("meds_taken", language), language, "meds")
+
     if not text or first in HELP_WORDS:
         return Reply(message("help", language), language, "help")
 
     try:
+        if first in MEDS_WORDS:
+            return _meds(words[1:], sender, language, country)
+
         if first in REMIND_WORDS:
             return _remind(words[1:], sender, language, country)
 

@@ -71,4 +71,4 @@ def test_health_reports_usage():
 def test_simulator_inbox():
     store.add_reminder("web:testclient", 0, "drink water", "en", "now")
     appmod.deliver_due_reminders()
-    assert TestClient(appmod.app).get("/api/inbox").json() == {"messages": ["REMINDER: drink water"]}
+    assert TestClient(appmod.app).get("/api/inbox").json() == {"messages": ["REMINDER: drink water"], "calls": []}

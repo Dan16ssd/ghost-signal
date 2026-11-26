@@ -56,7 +56,14 @@
   .ghost { position: fixed; bottom: 12px; right: 16px; font-size: 1.8rem; opacity: .0; transition: opacity .4s; pointer-events: none; }
   .ghost.on { opacity: .9; animation: float 1.6s ease-in-out infinite; }
   @keyframes float { 50% { transform: translateY(-10px); } }
-  @media (prefers-reduced-motion: reduce) { .blink, .ghost.on { animation: none; } }
+  .call { align-self: stretch; border-width: 2px; }
+  .call .ring { font-weight: bold; }
+  .call .actions { display: flex; gap: 6px; margin-top: 6px; }
+  .call .actions button { flex: 1; padding: 4px 0; border-radius: 8px; font-size: .8rem; }
+  .call .actions .yes { background: #3f6b2a; }
+  .shake { animation: shake .4s ease-in-out 3; }
+  @keyframes shake { 25% { transform: translateX(-3px) rotate(-1deg); } 75% { transform: translateX(3px) rotate(1deg); } }
+  @media (prefers-reduced-motion: reduce) { .blink, .ghost.on, .shake { animation: none; } }
   footer { color: var(--muted); font-size: .8rem; text-align: center; max-width: 30rem; }
 </style>
 </head>
@@ -113,6 +120,8 @@
     <button type="button" data-ex="¿Cómo se previene el cólera?" data-country="MX">🇲🇽 ¿Cólera?</button>
     <button type="button" data-ex="RATE" data-country="NG">🇳🇬 RATE</button>
     <button type="button" data-ex="REMIND in 1 min drink water">⏰ REMIND in 1 min</button>
+    <button type="button" data-ex="MEDS in 1 min blood pressure pill" data-country="EG">💊 MEDS call in 1 min</button>
+    <button type="button" data-ex="ຢາ in 1 min ຢາຄວາມດັນ" data-country="LA">🇱🇦 💊 ຢາ in 1 min</button>
   </div>
 
   <footer>Answers come from Wikipedia, Open-Meteo and ExchangeRate-API. Built for Laos and Egypt; works in 50+ languages. Your phone number tells it your country, so RATE shows your money. For health questions, always see a health worker.</footer>
@@ -132,6 +141,8 @@
     weather: 'Try WEATHER and any city, in Lao or Arabic too.',
     rate: 'Change "Texting from" and RATE answers in that country’s money.',
     remind: 'Reminders arrive as a new SMS at that time, in your local time zone.',
+    meds: 'The phone will ring at that time every day. Press 1 to say the medicine is taken.',
+    family: 'Family alerts start after they reply YES. Only your own phone is ever called.',
     stop: 'You are unsubscribed. Send START to bring the ghost back.',
     start: 'The ghost is back. Ask anything.',
     help: 'Tip: tap the keypad like an old phone, or just type.',
@@ -164,6 +175,7 @@
       const data = await r.json();
       wait.remove();
       if (data.reply) add(data.reply, 'them', data.segments ? `${data.segments} SMS · ${data.encoding}` : '');
+      for (const n of data.notes || []) add(n, 'them', 'shown here; a real phone gets this');
       guide.textContent = HINTS[data.kind] || '';
     } catch (e) {
       wait.remove();
@@ -206,12 +218,48 @@
     pad.appendChild(b);
   }
 
+  // A medicine call: the phone rings and shows what the voice says.
+  function ring(c) {
+    const div = add('', 'them call');
+    div.dir = 'auto';
+    const head = document.createElement('div');
+    head.className = 'ring';
+    head.textContent = '📞 Incoming call: Ghost Signal' + (c.spoken_in === 'th' ? ' (Thai voice)' : '');
+    const said = document.createElement('div');
+    said.textContent = '🔊 ' + c.text;
+    const actions = document.createElement('div');
+    actions.className = 'actions';
+    const yes = document.createElement('button');
+    yes.type = 'button'; yes.className = 'yes'; yes.textContent = 'Press 1 ✔';
+    const no = document.createElement('button');
+    no.type = 'button'; no.textContent = 'Ignore';
+    actions.append(yes, no);
+    div.append(head, said, actions);
+    document.querySelector('.phone').classList.add('shake');
+    setTimeout(() => document.querySelector('.phone').classList.remove('shake'), 1300);
+    guide.textContent = '📞 Medicine call! Press 1 if you took it, or ignore it: the ghost calls back in 10 minutes.';
+    const done = async digit => {
+      actions.remove();
+      try {
+        const r = await fetch(`/api/dose/${c.dose}/press`, { method: 'POST',
+          headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ digit }) });
+        const data = await r.json();
+        const p = document.createElement('div'); p.textContent = '🔊 ' + data.reply; div.appendChild(p);
+        guide.textContent = digit === '1' ? '✔ Dose confirmed. Next call tomorrow at the same time.'
+          : 'No answer twice and the family contact gets an SMS.';
+      } catch (e) { /* offline */ }
+    };
+    yes.addEventListener('click', () => done('1'));
+    no.addEventListener('click', () => done('0'));
+  }
+
   // Reminders come back as new messages, like an SMS arriving later.
   setInterval(async () => {
     try {
       const r = await fetch('/api/inbox');
       const data = await r.json();
       for (const m of data.messages) { add(m, 'them', 'new SMS'); guide.textContent = '⏰ A reminder just arrived.'; }
+      for (const c of data.calls || []) ring(c);
     } catch (e) { /* offline: try again next tick */ }
   }, 15000);
   add('👻 A ghost is listening. Text a question, or HELP for commands.', 'them');

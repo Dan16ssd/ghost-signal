@@ -34,6 +34,9 @@ Built for **Kiroween 2026**, category **Resurrection**.
 | `REMIND 8pm take medicine` | An SMS at 8pm **in your own time zone** |
 | `REMIND in 2 hours call mum` / `REMIND LIST` / `REMIND DEL 1` | Set, list, delete |
 | `ذكرني غدا الساعة 8 مساء بالدواء` | Reminder set in Arabic, Cairo time |
+| `MEDS 8am 8pm blood pressure pill` | **A phone call every day** at 8am and 8pm: "time for your medicine, press 1" |
+| `MEDS FAMILY +201001234567` | If 2 calls get no answer, that family member gets an SMS (after they reply YES) |
+| `MEDS LIST` / `MEDS DEL 1` / `1` | See, stop, or confirm a dose by SMS |
 | `STOP` / `START` | No more texts / welcome back |
 | `HELP` | Commands |
 
@@ -66,6 +69,11 @@ Phone <--SMS-- Twilio <--API------ fit to <= 3 SMS parts (67 chars each in Lao/A
 - Every reply fits in at most 3 SMS parts. This rule is checked by property-based tests.
 - Health answers always add "see a health worker".
 - **Reminders** use the time zone of the sender's country and arrive as a new SMS.
+- **Medicine calls** are for older people living alone: the phone rings at the same local
+  time every day, a voice in their language says what to take, and they press 1. No answer
+  twice -> a family member they chose gets an SMS. Only the person's own number is ever called.
+  There is no Lao voice, so Lao speakers hear Thai, which most Lao understand. Languages
+  without a voice get an SMS instead.
 - **Built like a real SMS service:** `STOP` always wins (opt-out also cancels reminders),
   each Twilio message is answered once even if Twilio retries, each number gets 20 questions
   an hour, all AI calls together have a daily budget (above it, answers fall back to plain
@@ -95,12 +103,13 @@ Without an Anthropic key, answers fall back to the first sentences of the source
 1. Buy an SMS-capable number in Twilio.
 2. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, `PUBLIC_BASE_URL` in `.env`.
 3. In the number's settings, set **A message comes in** to `POST https://<your-host>/sms`.
+4. For medicine calls, the number must support **Voice**; calls fetch `https://<your-host>/voice/dose/<id>` (needs `PUBLIC_BASE_URL`).
 
 ## How we used Kiro
 
 | Kiro feature | Where | What it does for us |
 |---|---|---|
-| **Specs** (5) | `.kiro/specs/` | `ghost-signal`, `sms-gateway`, `reminders`, `phone-simulator`, `mcp-server`: EARS requirements, design, tasks |
+| **Specs** (6) | `.kiro/specs/` | `ghost-signal`, `sms-gateway`, `reminders`, `medication-calls`, `phone-simulator`, `mcp-server`: EARS requirements, design, tasks |
 | **Steering** (6) | `.kiro/steering/` | product, tech, structure, plus `sms-rules`, `languages`, `design` that load only for matching files |
 | **Hooks** (4) | `.kiro/hooks/` | tests on save, secret + phone-number scan, HELP/README sync, language review of Lao/Arabic |
 | **Custom agents** (2) | `.kiro/agents/` | `language-reviewer`, `gateway-auditor` |

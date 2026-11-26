@@ -31,6 +31,9 @@ class Settings:
     # Daily cap on AI calls for everyone together; above it, answers fall back to plain extracts
     max_ai_calls_per_day: int = int(os.getenv("GHOST_MAX_AI_PER_DAY", "2000"))
     max_reminders: int = int(os.getenv("GHOST_MAX_REMINDERS", "5"))
+    # Medicine calls (Twilio Voice). Off = SMS reminders only.
+    voice_calls: bool = _flag("GHOST_VOICE_CALLS", True)
+    max_calls_per_day: int = int(os.getenv("GHOST_MAX_CALLS_PER_DAY", "200"))
     # State (opt-outs, limits, reminders)
     db_path: str = os.getenv("GHOST_DB", "ghost_signal.db")
     # Twilio

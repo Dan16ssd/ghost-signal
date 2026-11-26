@@ -16,3 +16,6 @@ fileMatchPattern: "ghost_signal/**/*.py"
   opted-out numbers and duplicate webhooks, which get an empty reply.
 - Never log or store message texts; mask phone numbers in logs (`countries.mask`).
 - Health and safety answers say "see a health worker" in the reply language.
+- Voice calls go only to the number that set up the medicine, never to anyone else.
+  Family contacts only get SMS, and only after they reply YES.
+- Calls have a daily cap for everyone together; above it, reminders go by SMS.

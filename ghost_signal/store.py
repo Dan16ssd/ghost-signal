@@ -29,6 +29,22 @@ CREATE TABLE IF NOT EXISTS reminders (
     label TEXT NOT NULL, state TEXT NOT NULL DEFAULT 'waiting', created REAL NOT NULL
 );
 CREATE INDEX IF NOT EXISTS reminders_due ON reminders (state, due);
+CREATE TABLE IF NOT EXISTS meds (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    number TEXT NOT NULL, times TEXT NOT NULL, what TEXT NOT NULL, spoken TEXT NOT NULL,
+    lang TEXT NOT NULL, tz TEXT NOT NULL, active INTEGER NOT NULL DEFAULT 1, created REAL NOT NULL
+);
+CREATE TABLE IF NOT EXISTS doses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    med_id INTEGER NOT NULL, due REAL NOT NULL, next_try REAL NOT NULL,
+    attempts INTEGER NOT NULL DEFAULT 0, state TEXT NOT NULL DEFAULT 'waiting',
+    ring_pending INTEGER NOT NULL DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS doses_next ON doses (state, next_try);
+CREATE TABLE IF NOT EXISTS family (
+    person TEXT NOT NULL, contact TEXT NOT NULL, ok INTEGER NOT NULL DEFAULT 0, created REAL NOT NULL,
+    PRIMARY KEY (person, contact)
+);
 """
 
 
@@ -58,6 +74,9 @@ def _run(sql: str, args: tuple = ()) -> list[tuple]:
 def opt_out(number: str) -> None:
     _run("INSERT OR REPLACE INTO optout VALUES (?, ?)", (number, time.time()))
     _run("UPDATE reminders SET state = 'cancelled' WHERE number = ? AND state = 'waiting'", (number,))
+    _run("UPDATE meds SET active = 0 WHERE number = ?", (number,))
+    _run("UPDATE doses SET state = 'cancelled' WHERE state = 'waiting' AND med_id IN "
+         "(SELECT id FROM meds WHERE number = ?)", (number,))
 
 
 def opt_in(number: str) -> None:
@@ -177,3 +196,125 @@ def stats() -> dict:
         "ai_budget_per_day": settings.max_ai_calls_per_day,
         "reminders_waiting": waiting_n,
     }
+
+
+# --- Medicine calls ------------------------------------------------------------
+
+
+@dataclass
+class Med:
+    id: int
+    number: str
+    times: str  # "08:00,20:00" local time
+    what: str  # as the person wrote it
+    spoken: str  # what the call voice says (may be translated, e.g. Lao -> Thai)
+    lang: str
+    tz: str
+
+
+@dataclass
+class Dose:
+    id: int
+    med_id: int
+    due: float
+    next_try: float
+    attempts: int
+    state: str  # waiting | confirmed | missed | cancelled
+
+
+_MED_COLS = "id, number, times, what, spoken, lang, tz"
+_DOSE_COLS = "id, med_id, due, next_try, attempts, state"
+
+
+def add_med(number: str, times: str, what: str, spoken: str, lang: str, tz: str) -> int:
+    with _lock:
+        cur = _conn().execute(
+            "INSERT INTO meds (number, times, what, spoken, lang, tz, created) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (number, times, what, spoken, lang, tz, time.time()),
+        )
+        return int(cur.lastrowid)
+
+
+def meds_of(number: str) -> list[Med]:
+    return [Med(*r) for r in _run(f"SELECT {_MED_COLS} FROM meds WHERE number = ? AND active = 1 ORDER BY id", (number,))]
+
+
+def med(med_id: int) -> Med | None:
+    rows = _run(f"SELECT {_MED_COLS} FROM meds WHERE id = ? AND active = 1", (med_id,))
+    return Med(*rows[0]) if rows else None
+
+
+def stop_med(med_id: int) -> None:
+    _run("UPDATE meds SET active = 0 WHERE id = ?", (med_id,))
+    _run("UPDATE doses SET state = 'cancelled' WHERE med_id = ? AND state = 'waiting'", (med_id,))
+
+
+def stop_all_meds(number: str) -> None:
+    for m in meds_of(number):
+        stop_med(m.id)
+
+
+def add_dose(med_id: int, due: float) -> int:
+    with _lock:
+        cur = _conn().execute("INSERT INTO doses (med_id, due, next_try) VALUES (?, ?, ?)", (med_id, due, due))
+        return int(cur.lastrowid)
+
+
+def dose(dose_id: int) -> Dose | None:
+    rows = _run(f"SELECT {_DOSE_COLS} FROM doses WHERE id = ?", (dose_id,))
+    return Dose(*rows[0]) if rows else None
+
+
+def doses_to_try(now: float | None = None) -> list[Dose]:
+    now = time.time() if now is None else now
+    return [Dose(*r) for r in _run(
+        f"SELECT {_DOSE_COLS} FROM doses WHERE state = 'waiting' AND next_try <= ? ORDER BY next_try", (now,))]
+
+
+def dose_tried(dose_id: int, next_try: float, ring_web: bool = False) -> None:
+    _run("UPDATE doses SET attempts = attempts + 1, next_try = ?, ring_pending = ? WHERE id = ?",
+         (next_try, 1 if ring_web else 0, dose_id))
+
+
+def set_dose_state(dose_id: int, state: str) -> None:
+    _run("UPDATE doses SET state = ?, ring_pending = 0 WHERE id = ?", (state, dose_id))
+
+
+def ringing_dose(number: str) -> Dose | None:
+    """The dose this person was just called (or texted) about and has not confirmed yet."""
+    rows = _run(
+        f"SELECT {', '.join('d.' + c for c in _DOSE_COLS.split(', '))} FROM doses d JOIN meds m ON m.id = d.med_id "
+        "WHERE m.number = ? AND d.state = 'waiting' AND d.attempts > 0 ORDER BY d.due LIMIT 1",
+        (number,),
+    )
+    return Dose(*rows[0]) if rows else None
+
+
+def web_rings(number: str) -> list[Dose]:
+    """Calls waiting to 'ring' in a simulator visitor's browser."""
+    rows = _run(
+        f"SELECT {', '.join('d.' + c for c in _DOSE_COLS.split(', '))} FROM doses d JOIN meds m ON m.id = d.med_id "
+        "WHERE m.number = ? AND d.ring_pending = 1 AND d.state = 'waiting'",
+        (number,),
+    )
+    _run("UPDATE doses SET ring_pending = 0 WHERE med_id IN (SELECT id FROM meds WHERE number = ?)", (number,))
+    return [Dose(*r) for r in rows]
+
+
+def invite_family(person: str, contact: str) -> None:
+    _run("INSERT OR REPLACE INTO family VALUES (?, ?, 0, ?)", (person, contact, time.time()))
+
+
+def accept_family(contact: str) -> list[str]:
+    """The contact replied YES: returns the people they now watch over."""
+    people = [r[0] for r in _run("SELECT person FROM family WHERE contact = ? AND ok = 0", (contact,))]
+    _run("UPDATE family SET ok = 1 WHERE contact = ?", (contact,))
+    return people
+
+
+def pending_invites(contact: str) -> bool:
+    return bool(_run("SELECT 1 FROM family WHERE contact = ? AND ok = 0", (contact,)))
+
+
+def family_of(person: str) -> list[str]:
+    return [r[0] for r in _run("SELECT contact FROM family WHERE person = ? AND ok = 1", (person,))]

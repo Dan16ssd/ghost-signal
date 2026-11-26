@@ -39,6 +39,11 @@ An honest log of how Ghost Signal was built, for the judges and for us.
 - `mcp-server`: five tools, Kiro config with AI off.
 - CI (GitHub Actions), Dockerfile, Render blueprint.
 
+### Nov 27 - medicine calls (idea from Danny)
+- New spec `medication-calls`: daily call, press 1, retry after 10 minutes, SMS to a family
+  member who said YES. Lao has no Twilio voice, so Lao speakers hear Thai.
+- Property test for `next_due` across four time zones; 80 tests in total.
+
 ### Next, inside Kiro
 - [ ] Run the `language-reviewer` agent on Lao and Arabic; Danny and Mohamed confirm wording.
 - [ ] Run `gateway-auditor` before the first deploy.

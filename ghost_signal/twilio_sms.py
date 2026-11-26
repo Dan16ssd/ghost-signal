@@ -43,3 +43,31 @@ def send_sms(to: str, body: str) -> None:
         timeout=15,
     )
     r.raise_for_status()
+
+
+def place_call(to: str, twiml_url: str) -> None:
+    """Start an outgoing voice call; Twilio fetches the call's TwiML from `twiml_url` (POST)."""
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.twilio_account_sid}/Calls.json"
+    r = httpx.post(
+        url,
+        data={"To": to, "From": settings.twilio_from_number, "Url": twiml_url, "Method": "POST", "Timeout": "30"},
+        auth=(settings.twilio_account_sid, settings.twilio_auth_token),
+        timeout=15,
+    )
+    r.raise_for_status()
+
+
+def voice_twiml(parts: list[str], language: str, voice: str, gather_action: str | None = None,
+                after_gather: str | None = None) -> str:
+    """Spoken TwiML. With `gather_action`, the speech waits for one key press sent to that URL."""
+    say = "".join(
+        f'<Say language="{escape(language)}" voice="{escape(voice)}">{escape(p)}</Say><Pause length="1"/>'
+        for p in parts
+    )
+    if gather_action:
+        body = (f'<Gather numDigits="1" timeout="8" action="{escape(gather_action)}" method="POST">{say}</Gather>'
+                + (f'<Say language="{escape(language)}" voice="{escape(voice)}">{escape(after_gather)}</Say>'
+                   if after_gather else ""))
+    else:
+        body = say
+    return f'<?xml version="1.0" encoding="UTF-8"?><Response>{body}</Response>'

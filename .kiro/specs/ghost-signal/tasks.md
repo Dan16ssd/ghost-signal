@@ -20,3 +20,4 @@
 - [ ] 13. README write-up of how each Kiro feature was used (800+ words, screenshots)
 - [x] 14. Production pass: see specs `sms-gateway`, `reminders`, `phone-simulator`
 - [x] 15. CI, Dockerfile, Render blueprint
+- [x] 16. Medicine reminder calls (spec `medication-calls`)
