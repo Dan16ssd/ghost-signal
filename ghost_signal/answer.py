@@ -22,22 +22,22 @@ HELP_WORDS = {"help", "?", "ຊ່ວຍ", "مساعدة", "مساعده", "ayud
               "मदद", "সাহায্য", "помощь", "yardım", "hilfe", "tulong"}
 WEATHER_WORDS = {"weather", "ອາກາດ", "طقس", "الطقس", "clima", "tiempo", "météo", "meteo", "tempo", "hewa",
                  "cuaca", "मौसम", "আবহাওয়া", "погода", "hava", "wetter", "panahon", "thời_tiết"}
-RATE_WORDS = {"rate", "rates", "ອັດຕາ", "سعر", "صرف", "cambio", "taux", "câmbio", "kurs", "kiwango",
+RATE_WORDS = {"rate", "rates", "palitan", "ອັດຕາ", "سعر", "صرف", "cambio", "taux", "câmbio", "kurs", "kiwango",
               "विनिमय", "курс", "döviz"}
-REMIND_WORDS = {"remind", "reminder", "ເຕືອນ", "ذكرني", "ذكّرني", "recuérdame", "recordar", "rappel", "rappelle",
+REMIND_WORDS = {"remind", "reminder", "paalala", "ipaalala", "ເຕືອນ", "ذكرني", "ذكّرني", "recuérdame", "recordar", "rappel", "rappelle",
                 "lembrar", "lembre", "nikumbushe", "ingatkan", "याद", "напомни"}
 # Carrier-standard opt-out / opt-in words (Twilio uses the same ones), plus local ones.
 STOP_WORDS = {"stop", "stopall", "unsubscribe", "end", "quit", "cancel", "ຢຸດ", "توقف", "إيقاف", "الغاء", "إلغاء"}
 START_WORDS = {"start", "unstop", "ເລີ່ມ", "ابدأ", "ابدا"}
-MEDS_WORDS = {"meds", "medicine", "medicines", "pills", "ຢາ", "دواء", "الدواء", "medicina", "medicamento",
+MEDS_WORDS = {"meds", "medicine", "medicines", "pills", "gamot", "ຢາ", "دواء", "الدواء", "medicina", "medicamento",
               "médicament", "dawa", "obat", "दवा"}
-TAKEN_WORDS = {"1", "taken", "done", "ok", "ກິນແລ້ວ", "تم", "اخذته", "أخذته"}
-YES_WORDS = {"yes", "y", "ໂດຍ", "ແມ່ນ", "نعم", "sí", "si", "oui", "sim", "ndiyo", "ya", "हाँ", "haan"}
+TAKEN_WORDS = {"1", "taken", "done", "ok", "nainom", "ກິນແລ້ວ", "تم", "اخذته", "أخذته"}
+YES_WORDS = {"yes", "y", "oo", "opo", "ໂດຍ", "ແມ່ນ", "نعم", "sí", "si", "oui", "sim", "ndiyo", "ya", "हाँ", "haan"}
 PHONE = re.compile(r"^\+\d{8,15}$")
-DEFAULT_RATE_TARGETS = ["EGP", "LAK", "THB", "EUR"]
+DEFAULT_RATE_TARGETS = ["LAK", "PHP", "THB", "EUR"]
 CURRENCY = re.compile(r"^[A-Za-z]{3}$")
 
-SYSTEM_PROMPT = """You answer questions sent by SMS from basic phones, often by people with no internet (for example in rural Laos or Egypt).
+SYSTEM_PROMPT = """You answer questions sent by SMS from basic phones, often by people with no internet (often older people in rural Laos and elsewhere).
 Rules:
 - Answer ONLY from the sources given. If they do not answer the question, reply exactly: NOT_FOUND
 - Reply in the same language as the question, even if the sources are in another language.
@@ -74,6 +74,12 @@ def _char_budget(language: str) -> int:
 def _short_url(url: str) -> str:
     url = unquote(url)  # show Arabic/Lao titles as text, not %D8%AD...
     return re.sub(r"^https?://", "", url).replace(".m.wikipedia.org", ".wikipedia.org")
+
+
+def _relevant(question: str, found: list[sources.Source]) -> list[sources.Source]:
+    """Without AI nobody checks the page fits, so keep only pages that share a real word with the question."""
+    words = {w for w in re.findall(r"\w{4,}", question.lower()) if not w.isdigit()}
+    return [s for s in found if words & set(re.findall(r"\w{4,}", f"{s.title} {s.text}".lower()))]
 
 
 def _extractive(found: list[sources.Source], language: str) -> str:
@@ -185,7 +191,7 @@ def _rate(args: list[str], language: str, country: countries.Country | None) -> 
         targets = [local] + [c for c in DEFAULT_RATE_TARGETS if c != local] if local else DEFAULT_RATE_TARGETS
     elif len(codes) == 1:
         base = codes[0]
-        targets = [local] if local and local != base else ["USD", "EUR", "EGP", "LAK"]
+        targets = [local] if local and local != base else ["USD", "EUR", "LAK", "PHP"]
     else:
         base, targets = codes[0], codes[1:]
     text = sources.exchange_rate(base, targets)
@@ -400,6 +406,10 @@ def handle(text: str, sender: str | None = None, country: countries.Country | No
 
         store.count("question")
         found = _search(text, language)
+        if not settings.use_llm:
+            found = _relevant(text, found)
+            if not found and language != "en":
+                found = _relevant(text, sources.wikipedia(text, "en"))
         if not found:
             return Reply(message("not_found", language), language, "not_found")
 

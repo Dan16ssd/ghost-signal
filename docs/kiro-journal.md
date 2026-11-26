@@ -23,7 +23,7 @@ An honest log of how Ghost Signal was built, for the judges and for us.
 - Repo skeleton, SMS length rules, Lao + English, Twilio webhook, simulator. The first spec
   (`ghost-signal`) and steering were drafted alongside. Property test found a crash on
   lone UTF-16 surrogates; fixed by counting units by hand.
-- Egypt: Arabic detection and messages, Arabic city names for weather, RATE command.
+- Arabic detection and messages, local city names for weather, RATE command.
 - Any country: calling code -> country, language hint, currency; 54 languages; English retry
   when a small Wikipedia misses.
 
@@ -44,8 +44,14 @@ An honest log of how Ghost Signal was built, for the judges and for us.
   member who said YES. Lao has no Twilio voice, so Lao speakers hear Thai.
 - Property test for `next_due` across four time zones; 80 tests in total.
 
+### Nov 27 - one story: older people with old phones
+- Looked at a natural-disaster story too, but chose one hero: an older person living alone
+  with a basic phone. Medicine calls lead; ask-by-SMS and reminders support.
+- Many languages, not one: hand-written call scripts in en, es, fr, pt, hi, tl, ar, th
+  (Lao hears Thai), AI translation for the other voiced languages; Tagalog command words.
+
 ### Next, inside Kiro
-- [ ] Run the `language-reviewer` agent on Lao and Arabic; Danny and Mohamed confirm wording.
+- [ ] Run the `language-reviewer` agent on Lao and Arabic; Danny (Lao) and a Filipino speaker (Tagalog) confirm wording.
 - [ ] Run `gateway-auditor` before the first deploy.
 - [ ] Spec + tasks for the trusted health source (WHO), built task by task in Kiro.
 - [ ] Spooky polish of the simulator with the design steering.

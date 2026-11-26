@@ -20,7 +20,7 @@
 3. WHEN the message is RATE [FROM] [TO...] (or ອັດຕາ / سعر) THE SYSTEM SHALL reply with exchange rates; with one currency it SHALL convert to the sender's local currency (from the sender's phone number country, e.g. +234 gives NGN; else LAK for Lao, EGP for Arabic).
 
 ## Requirement 5: Any country
-**User story:** As someone outside Laos and Egypt, I want the same service in my language and currency.
+**User story:** As someone outside Laos and the Philippines, I want the same service in my language and currency.
 
 1. WHEN an SMS arrives THE SYSTEM SHALL work out the sender's country from the calling code.
 2. WHEN fixed messages have no hand-written version in the sender's language THE SYSTEM SHALL use an AI translation, cached, or English if the AI is off.

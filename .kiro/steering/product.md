@@ -1,16 +1,20 @@
 # Product: Ghost Signal
 
-Ghost Signal brings the web back to "dead" technology: plain SMS on basic phones.
-A person texts a question; the service searches trusted public sources and texts back
-a short answer with its source.
+Ghost Signal brings a "dead" technology back to life: old button phones, SMS and plain
+phone calls, with an AI behind them. Pitch: "Grandma's old phone just got an AI."
+
+Hero feature: daily medicine calls in the person's language (press 1; family SMS after two
+missed calls). Second: ask anything by SMS (health, weather, money) with sources. Third:
+SMS reminders. Everything works in many languages, not only one.
 
 ## Who it is for
 - Anyone with a basic (feature) phone, or a smartphone but no mobile data.
-- Launch audiences are the team's home countries: Laos (Lao) and Egypt (Arabic), plus English.
+- Hero user: an older person living alone with a basic phone, and their family far away.
+- Filmed in Laos (Danny's family); works in 50+ languages and 93 countries.
   The engine works from any country: the sender's calling code gives the country (currency,
   language hint) and the text gives the language (50+ languages, 93 countries).
   Both have many people offline or on prepaid basic phones, and fast-moving prices
-  (kip and Egyptian pound), so health facts, weather and exchange rates matter daily.
+  (kip, peso after disasters), so health facts, weather and exchange rates matter daily.
 - Adding a country = one line in `countries.py`. Fixed messages for languages without a
   hand-written version are AI-translated once and cached.
 

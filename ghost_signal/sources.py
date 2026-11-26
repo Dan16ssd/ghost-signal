@@ -63,7 +63,7 @@ def wikipedia(query: str, lang: str = "en", limit: int = 3) -> list[Source]:
 
 
 def exchange_rate(base: str, targets: list[str]) -> str | None:
-    """'1 USD = 54.66 EGP, 22,468 LAK (ExchangeRate-API, 26 Nov)', or None if a code is unknown."""
+    """'1 USD = 22,468 LAK, 58.10 PHP (ExchangeRate-API, 26 Nov)', or None if a code is unknown."""
     base = base.upper()
     with _client() as http:
         r = http.get(f"https://open.er-api.com/v6/latest/{base}")
@@ -98,7 +98,7 @@ WEATHER_CODES = {
 
 # The geocoder only knows Latin-script names; map common local spellings.
 CITY_NAMES = {
-    # Egypt
+    # Arabic names
     "القاهرة": "Cairo", "الإسكندرية": "Alexandria", "الاسكندرية": "Alexandria", "الجيزة": "Giza",
     "أسوان": "Aswan", "اسوان": "Aswan", "الأقصر": "Luxor", "الاقصر": "Luxor", "بورسعيد": "Port Said",
     "السويس": "Suez", "المنصورة": "Mansoura", "طنطا": "Tanta", "أسيوط": "Asyut", "اسيوط": "Asyut",

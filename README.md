@@ -2,16 +2,21 @@
 
 [![tests](https://github.com/Dan16ssd/ghost-signal/actions/workflows/tests.yml/badge.svg)](https://github.com/Dan16ssd/ghost-signal/actions/workflows/tests.yml)
 
-**No smartphone? No data? Text your question and the web texts back.**
+**Grandma's old phone just got an AI.**
 
-Ghost Signal brings the web to a "dead" technology: plain SMS on basic phones.
-Text a question to the Ghost Signal number; it searches trusted public sources
-(Wikipedia, Open-Meteo weather, exchange rates) and texts back a short answer
-with its source, **in the language you wrote in** (50+ languages).
+Ghost Signal brings a "dead" technology back to life: the old button phone, plain SMS and
+ordinary phone calls, now with an AI brain behind them. No smartphone, no app, no data plan.
 
-We are a two-person team from **Laos and Egypt**, so those are our launch countries,
-with hand-written Lao and Arabic. It works from any of 93 countries: your phone
-number tells Ghost Signal where you are, so `RATE` shows *your* money.
+- 📞 **Medicine calls**: every day at the right time, the old phone rings and a voice says,
+  *in the person's own language*, which medicine to take. They press 1. No answer twice?
+  A family member gets an SMS.
+- 💬 **Ask anything by SMS**: health, weather, today's money rate. The answer comes back in
+  the language the question was written in, with its source.
+- ⏰ **Reminders by SMS**, in the person's own time zone.
+
+It speaks **50+ languages** (17 with a phone voice) and works from **93 countries**: the phone
+number tells Ghost Signal where someone is. We film it in **Laos**, where Danny's family uses
+basic phones.
 
 Built for **Kiroween 2026**, category **Resurrection**.
 
@@ -22,32 +27,34 @@ Built for **Kiroween 2026**, category **Resurrection**.
 
 | Message | Reply |
 |---|---|
+| `MEDS 8am 8pm blood pressure pill` | **The old phone rings every day** at 8am and 8pm: "time for your medicine, press 1" |
+| `MEDS FAMILY +8562055512345` | If 2 calls get no answer, that family member gets an SMS (after they reply YES) |
+| `MEDS LIST` / `MEDS DEL 1` / `1` | See, stop, or confirm a dose by SMS |
+| `ຢາ 8am ຢາຄວາມດັນ` (Lao) / `MEDS 9am pastilla` (Spanish) / `MEDS 8am दवा` (Hindi) | The call speaks that language |
 | `What is dengue fever?` | 1-3 SMS answer + source link |
 | `WEATHER Vientiane` | Now + tomorrow forecast |
-| `RATE` / `سعر USD` / `ອັດຕາ USD` | Dollar in Egyptian pounds, kip... |
+| `RATE` / `ອັດຕາ USD` | Dollar in kip, pesos... (your local money) |
 | `ໄຂ້ຍຸງລາຍ ແມ່ນຫຍັງ` | Answer in Lao |
-| `ما هي حمى الضنك؟` | Answer in Arabic |
-| `طقس القاهرة` | Cairo forecast |
+| `Paano bumaba ang presyon ng dugo?` (from the Philippines) | Answer in Tagalog |
 | `Dalili za malaria ni zipi?` (from Kenya) | Answer in Swahili |
 | `डेंगू के लक्षण क्या हैं?` (from India) | Answer in Hindi |
 | `RATE` (from Nigeria) | Dollar in naira |
 | `REMIND 8pm take medicine` | An SMS at 8pm **in your own time zone** |
 | `REMIND in 2 hours call mum` / `REMIND LIST` / `REMIND DEL 1` | Set, list, delete |
-| `ذكرني غدا الساعة 8 مساء بالدواء` | Reminder set in Arabic, Cairo time |
-| `MEDS 8am 8pm blood pressure pill` | **A phone call every day** at 8am and 8pm: "time for your medicine, press 1" |
-| `MEDS FAMILY +201001234567` | If 2 calls get no answer, that family member gets an SMS (after they reply YES) |
-| `MEDS LIST` / `MEDS DEL 1` / `1` | See, stop, or confirm a dose by SMS |
 | `STOP` / `START` | No more texts / welcome back |
 | `HELP` | Commands |
 
 ## Why
 
-Hundreds of millions of people have a phone but no smartphone or no mobile data.
-In rural Laos and in Upper Egypt, a basic phone and SMS still reach people that apps
-don't, and prices change fast (kip and Egyptian pound), so a trusted health fact, a
-forecast or today's exchange rate makes a daily difference. Ghost Signal gives them
-answers from the open web through the oldest messaging channel phones have.
-The same need exists from Lagos to Dhaka, so the engine is not tied to one country.
+Many older people still use basic button phones: big keys, a battery that lasts for days,
+nothing to update. Smartphone apps, chatbots and voice assistants left them out, and many of
+them live alone, far from their children who moved to the city or abroad. Forgetting a dose
+of blood-pressure or diabetes medicine is common, and nobody notices until something goes wrong.
+
+The old phone can already do the two things they need: **ring** and **receive a text**.
+Ghost Signal puts an AI behind those two old channels instead of asking people to learn a
+new device. The same basic phone also keeps working when floods or storms cut power and data,
+which happens every year in places like Laos.
 
 ## How it works
 
@@ -57,7 +64,7 @@ Phone --SMS--> Twilio --webhook--> /sms --> search trusted sources --> AI writes
 Phone <--SMS-- Twilio <--API------ fit to <= 3 SMS parts (67 chars each in Lao/Arabic)
 ```
 
-- **Country** comes from the sender's calling code (+20 Egypt, +856 Laos, +254 Kenya...;
+- **Country** comes from the sender's calling code (+856 Laos, +63 Philippines, +254 Kenya...;
   `ghost_signal/countries.py`): it sets the local currency and breaks language ties.
 - **Language** comes from the text: its alphabet (Lao, Arabic, Devanagari, Cyrillic, Han...)
   or common words for Latin-script languages; the country decides ties (Arabic vs Persian letters).
@@ -72,8 +79,9 @@ Phone <--SMS-- Twilio <--API------ fit to <= 3 SMS parts (67 chars each in Lao/A
 - **Medicine calls** are for older people living alone: the phone rings at the same local
   time every day, a voice in their language says what to take, and they press 1. No answer
   twice -> a family member they chose gets an SMS. Only the person's own number is ever called.
-  There is no Lao voice, so Lao speakers hear Thai, which most Lao understand. Languages
-  without a voice get an SMS instead.
+  Call scripts are hand-written in English, Spanish, French, Portuguese, Hindi, Tagalog,
+  Arabic and Thai, and AI-translated for the other voiced languages. There is no Lao voice,
+  so Lao speakers hear Thai, which most Lao understand. Languages without a voice get an SMS.
 - **Built like a real SMS service:** `STOP` always wins (opt-out also cancels reminders),
   each Twilio message is answered once even if Twilio retries, each number gets 20 questions
   an hour, all AI calls together have a daily budget (above it, answers fall back to plain

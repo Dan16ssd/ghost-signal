@@ -4,8 +4,9 @@ fileMatchPattern: "ghost_signal/{lang,answer,reminders}.py"
 ---
 # Languages
 
-- Launch languages, hand-written: English, Lao (Danny reviews), Arabic (Mohamed reviews).
-  Every fixed message key exists in all three (a test checks this).
+- Launch languages: English and Lao (Danny reviews) hand-written, Tagalog via AI translation
+  (a Filipino speaker reviews). Arabic is also hand-written. Every fixed message key exists in
+  en, lo and ar (a test checks this).
 - Other languages: the fixed message is AI-translated once and cached; English when AI is off.
 - Detection order: the text's script -> common Latin words -> the sender's country -> English.
   The country only breaks ties (Arabic vs Persian letters, Latin text with no common words).

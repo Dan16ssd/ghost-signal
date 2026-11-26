@@ -129,3 +129,10 @@ def test_every_message_is_hand_written_in_all_launch_languages():
     keys = set(lang.MESSAGES["en"])
     for code in ("lo", "ar"):
         assert set(lang.MESSAGES[code]) == keys, code
+
+
+def test_without_ai_an_unrelated_page_is_not_used(monkeypatch):
+    astrology = sources.Source("Astrolohiya", "Ang astrolohiya ay ang pag-aaral ng mga bituin.", "https://tl.wikipedia.org/wiki/A")
+    monkeypatch.setattr(sources, "wikipedia", lambda q, lang="en", limit=3: [astrology])
+    r = answer.handle("Ano ang gagawin kapag may bagyo?", sender="+639171234567")
+    assert r.kind == "not_found" and "astrolohiya" not in r.text.lower()

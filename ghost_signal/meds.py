@@ -40,6 +40,7 @@ VOICES: dict[str, tuple[str, str]] = {
     "id": ("id-ID", "Google.id-ID-Standard-A"),
     "vi": ("vi-VN", "Google.vi-VN-Standard-A"),
     "bn": ("bn-IN", "Google.bn-IN-Standard-A"),
+    "tl": ("fil-PH", "Google.fil-PH-Standard-A"),  # Filipino / Tagalog
 }
 
 # Which script the call voice reads, when it differs from the person's language.
@@ -59,6 +60,36 @@ SCRIPT = {
         "thanks": "شكراً لك. نتمنى لك الصحة.",
         "retry": "سنتصل بك مرة أخرى بعد عشر دقائق.",
     },
+    "es": {
+        "intro": "Hola, le habla Ghost Signal. Es hora de su medicina.",
+        "press": "Pulse 1 cuando la haya tomado.",
+        "thanks": "Gracias. Cuídese mucho.",
+        "retry": "Le volveremos a llamar en diez minutos.",
+    },
+    "fr": {
+        "intro": "Bonjour, ici Ghost Signal. C'est l'heure de votre médicament.",
+        "press": "Appuyez sur 1 quand vous l'avez pris.",
+        "thanks": "Merci. Prenez soin de vous.",
+        "retry": "Nous vous rappellerons dans dix minutes.",
+    },
+    "pt": {
+        "intro": "Olá, aqui é o Ghost Signal. Está na hora do seu remédio.",
+        "press": "Aperte 1 quando tiver tomado.",
+        "thanks": "Obrigado. Cuide-se.",
+        "retry": "Vamos ligar de novo em dez minutos.",
+    },
+    "hi": {
+        "intro": "नमस्ते, यह Ghost Signal है। आपकी दवा का समय हो गया है।",
+        "press": "दवा लेने के बाद 1 दबाएँ।",
+        "thanks": "धन्यवाद। अपना ध्यान रखें।",
+        "retry": "हम दस मिनट बाद फिर फ़ोन करेंगे।",
+    },
+    "tl": {
+        "intro": "Magandang araw po, ito ang Ghost Signal. Oras na po ng inyong gamot.",
+        "press": "Pindutin ang 1 kapag nainom na po ninyo.",
+        "thanks": "Salamat po. Ingat po kayo.",
+        "retry": "Tatawag po ulit kami makalipas ang sampung minuto.",
+    },
     "th": {  # also what Lao speakers hear
         "intro": "สวัสดีค่ะ นี่คือโกสต์ซิกแนล ถึงเวลากินยาแล้วค่ะ",
         "press": "กินยาแล้ว กดหนึ่งค่ะ",
@@ -66,6 +97,14 @@ SCRIPT = {
         "retry": "จะโทรมาอีกครั้งในสิบนาทีค่ะ",
     },
 }
+
+
+# Twilio language code -> browser speech code (the simulator speaks the call aloud).
+BROWSER_LANG = {"arb": "ar-SA", "cmn-CN": "zh-CN"}
+
+
+def browser_lang(say_language: str) -> str:
+    return BROWSER_LANG.get(say_language, say_language)
 
 
 def can_call(language: str) -> bool:

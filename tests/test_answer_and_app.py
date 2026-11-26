@@ -166,7 +166,7 @@ def test_rate_command(monkeypatch):
 
     monkeypatch.setattr(sources, "exchange_rate", fake_rate)
     assert answer.handle("RATE").kind == "rate"
-    assert calls[-1][0] == "USD" and "EGP" in calls[-1][1] and "LAK" in calls[-1][1]
+    assert calls[-1][0] == "USD" and "PHP" in calls[-1][1] and "LAK" in calls[-1][1]
     answer.handle("سعر USD")
     assert calls[-1] == ("USD", ["EGP"])  # Arabic speaker gets Egyptian pounds
     answer.handle("ອັດຕາ USD")

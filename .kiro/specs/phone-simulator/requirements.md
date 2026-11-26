@@ -12,7 +12,7 @@ a browser, as if on an old button phone, using the same engine as SMS.
 
 ## Requirement 2: Texting from any country
 1. THE simulator SHALL let the visitor choose the country they are "texting from"; language hint, currency and time zone follow it.
-2. Example buttons SHALL show Laos, Egypt and other countries, including a reminder due in 1 minute.
+2. Example buttons SHALL show Laos, the Philippines and other countries, including a reminder due in 1 minute.
 
 ## Requirement 3: Honest about SMS cost
 1. EACH reply SHALL show its number of SMS parts and the encoding (GSM-7 or UCS-2).

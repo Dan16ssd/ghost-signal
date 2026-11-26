@@ -11,6 +11,6 @@
   },
   "then": {
     "type": "askAgent",
-    "prompt": "Fixed messages changed in ghost_signal/lang.py. Act as the language-reviewer agent (.kiro/agents/language-reviewer.md): for each changed Lao and Arabic message, check meaning against the English one, natural wording for a rural reader, and SMS length with the ghost-signal MCP tool check_sms. Report suggestions; mark anything that needs a native speaker (Danny for Lao, Mohamed for Arabic) in .kiro/specs/ghost-signal/tasks.md task 7d."
+    "prompt": "Fixed messages changed in ghost_signal/lang.py. Act as the language-reviewer agent (.kiro/agents/language-reviewer.md): for each changed Lao, Arabic or Tagalog message, check meaning against the English one, natural wording for a rural reader, and SMS length with the ghost-signal MCP tool check_sms. Report suggestions; mark anything that needs a native speaker (Danny for Lao, a Filipino speaker for Tagalog) in .kiro/specs/ghost-signal/tasks.md task 7d."
   }
 }

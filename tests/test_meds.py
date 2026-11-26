@@ -222,7 +222,7 @@ def test_simulator_phone_rings_and_press_1(monkeypatch):
     dose_id = _due_now("web:testclient")
     appmod.run_doses()
     calls = c.get("/api/inbox").json()["calls"]
-    assert calls and calls[0]["dose"] == dose_id and "Press 1" in calls[0]["text"]
+    assert calls and calls[0]["dose"] == dose_id and "Press 1" in calls[0]["text"] and calls[0]["voice"] == "en-US"
     assert c.get("/api/inbox").json()["calls"] == []  # rings once
     assert c.post(f"/api/dose/{dose_id}/press", json={"digit": "1"}).json()["reply"] == "Thank you. Stay well."
     assert store.dose(dose_id).state == "confirmed"

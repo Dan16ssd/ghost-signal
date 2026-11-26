@@ -69,14 +69,16 @@
 </head>
 <body>
   <h1>👻 GHOST SIGNAL</h1>
-  <p class="sub">No smartphone? No data? Text your question and the web texts back.
-    This is a simulator of an old phone; the real service works by plain SMS.</p>
+  <p class="sub">Grandma's old phone just got an AI. It calls her when it's time for medicine,
+    in her language, and answers any question by SMS. This is a simulator of an old phone;
+    the real service uses plain calls and SMS.</p>
 
+  <label class="from"><input type="checkbox" id="sound" checked> 🔊 Calls speak out loud</label>
   <label class="from">Texting from
     <select id="country" aria-label="Country you are texting from">
       <option value="">Anywhere</option>
       <option value="LA">🇱🇦 Laos</option>
-      <option value="EG">🇪🇬 Egypt</option>
+      <option value="PH">🇵🇭 Philippines</option>
       <option value="KE">🇰🇪 Kenya</option>
       <option value="NG">🇳🇬 Nigeria</option>
       <option value="IN">🇮🇳 India</option>
@@ -84,7 +86,6 @@
       <option value="MX">🇲🇽 Mexico</option>
       <option value="BR">🇧🇷 Brazil</option>
       <option value="ID">🇮🇩 Indonesia</option>
-      <option value="PH">🇵🇭 Philippines</option>
       <option value="US">🇺🇸 USA</option>
     </select>
   </label>
@@ -109,22 +110,23 @@
   <div class="ghost" id="ghost" aria-hidden="true">👻</div>
 
   <div class="examples" aria-label="Example messages">
+    <button type="button" data-ex="MEDS in 1 min blood pressure pill" data-country="US">💊 Medicine call in 1 min</button>
+    <button type="button" data-ex="ຢາ in 1 min ຢາຄວາມດັນ" data-country="LA">🇱🇦 💊 ຢາ in 1 min</button>
+    <button type="button" data-ex="MEDS in 1 min pastilla de la presión" data-country="MX">🇲🇽 💊 MEDS in 1 min</button>
+    <button type="button" data-ex="MEDS in 1 min दवा" data-country="IN">🇮🇳 💊 MEDS in 1 min</button>
+    <button type="button" data-ex="MEDS in 1 min gamot sa presyon" data-country="PH">🇵🇭 💊 MEDS in 1 min</button>
     <button type="button" data-ex="How do I treat dengue fever?">Dengue fever</button>
     <button type="button" data-ex="RATE">RATE (local money)</button>
     <button type="button" data-ex="ໄຂ້ຍຸງລາຍ ແມ່ນຫຍັງ" data-country="LA">🇱🇦 ໄຂ້ຍຸງລາຍ</button>
     <button type="button" data-ex="ອາກາດ ຫຼວງພະບາງ" data-country="LA">🇱🇦 ອາກາດ ຫຼວງພະບາງ</button>
-    <button type="button" data-ex="ما هي حمى الضنك؟" data-country="EG">🇪🇬 حمى الضنك</button>
-    <button type="button" data-ex="طقس القاهرة" data-country="EG">🇪🇬 طقس القاهرة</button>
     <button type="button" data-ex="Dalili za malaria ni zipi?" data-country="KE">🇰🇪 Dalili za malaria</button>
     <button type="button" data-ex="डेंगू के लक्षण क्या हैं?" data-country="IN">🇮🇳 डेंगू के लक्षण</button>
     <button type="button" data-ex="¿Cómo se previene el cólera?" data-country="MX">🇲🇽 ¿Cólera?</button>
     <button type="button" data-ex="RATE" data-country="NG">🇳🇬 RATE</button>
     <button type="button" data-ex="REMIND in 1 min drink water">⏰ REMIND in 1 min</button>
-    <button type="button" data-ex="MEDS in 1 min blood pressure pill" data-country="EG">💊 MEDS call in 1 min</button>
-    <button type="button" data-ex="ຢາ in 1 min ຢາຄວາມດັນ" data-country="LA">🇱🇦 💊 ຢາ in 1 min</button>
   </div>
 
-  <footer>Answers come from Wikipedia, Open-Meteo and ExchangeRate-API. Built for Laos and Egypt; works in 50+ languages. Your phone number tells it your country, so RATE shows your money. For health questions, always see a health worker.</footer>
+  <footer>Answers come from Wikipedia, Open-Meteo and ExchangeRate-API. Made for older people with basic phones; filmed in Laos; works in 50+ languages. Your phone number tells it your country, so RATE shows your money. For health questions, always see a health worker.</footer>
 
 <script>
   const log = document.getElementById('log');
@@ -218,6 +220,35 @@
     pad.appendChild(b);
   }
 
+  // Sound: an old-phone ring tone, then the call spoken in its language (Web Speech API).
+  const soundBox = document.getElementById('sound');
+  let audio = null;
+  function ringTone() {
+    if (!soundBox.checked) return Promise.resolve();
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = audio.currentTime;
+      for (let i = 0; i < 4; i++) {  // two "brr-brr" rings
+        const o = audio.createOscillator(), g = audio.createGain();
+        o.type = 'square'; o.frequency.value = i % 2 ? 480 : 440;
+        g.gain.setValueAtTime(0.06, t0 + i * 0.5); g.gain.setValueAtTime(0, t0 + i * 0.5 + 0.35);
+        o.connect(g).connect(audio.destination); o.start(t0 + i * 0.5); o.stop(t0 + i * 0.5 + 0.4);
+      }
+    } catch (e) { /* no audio */ }
+    return new Promise(r => setTimeout(r, 2100));
+  }
+  function speak(text, lang) {
+    if (!soundBox.checked || !('speechSynthesis' in window)) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang || 'en-US';
+    const v = speechSynthesis.getVoices().find(x => x.lang.replace('_', '-').toLowerCase().startsWith(u.lang.slice(0, 2).toLowerCase()));
+    if (v) u.voice = v;
+    u.rate = 0.9;  // slower, for older listeners
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+  }
+  if ('speechSynthesis' in window) speechSynthesis.getVoices();
+
   // A medicine call: the phone rings and shows what the voice says.
   function ring(c) {
     const div = add('', 'them call');
@@ -238,6 +269,7 @@
     document.querySelector('.phone').classList.add('shake');
     setTimeout(() => document.querySelector('.phone').classList.remove('shake'), 1300);
     guide.textContent = '📞 Medicine call! Press 1 if you took it, or ignore it: the ghost calls back in 10 minutes.';
+    ringTone().then(() => speak(c.text, c.voice));
     const done = async digit => {
       actions.remove();
       try {
@@ -245,6 +277,7 @@
           headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ digit }) });
         const data = await r.json();
         const p = document.createElement('div'); p.textContent = '🔊 ' + data.reply; div.appendChild(p);
+        speak(data.reply, data.voice);
         guide.textContent = digit === '1' ? '✔ Dose confirmed. Next call tomorrow at the same time.'
           : 'No answer twice and the family contact gets an SMS.';
       } catch (e) { /* offline */ }

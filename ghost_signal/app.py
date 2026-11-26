@@ -163,10 +163,11 @@ def ask(body: Ask, request: Request) -> dict:
             "notes": notes}
 
 
-def _call_text(d: store.Dose) -> tuple[str, str]:
+def _call_text(d: store.Dose) -> tuple[str, str, str]:
+    """What the voice says, the language it is spoken in, and the browser speech code."""
     m = store.med(d.med_id)
-    script, _, _ = answer.call_voice(m.lang)
-    return " ".join(meds.call_parts(m.lang, m.spoken, script)), meds.voice_language(m.lang)
+    script, say_lang, _ = answer.call_voice(m.lang)
+    return " ".join(meds.call_parts(m.lang, m.spoken, script)), meds.voice_language(m.lang), meds.browser_lang(say_lang)
 
 
 @app.get("/api/inbox")
@@ -175,8 +176,8 @@ def inbox(request: Request) -> dict:
     sender = _web_sender(request)
     calls = []
     for d in store.web_rings(sender):
-        text, spoken_in = _call_text(d)
-        calls.append({"dose": d.id, "text": text, "spoken_in": spoken_in})
+        text, spoken_in, voice = _call_text(d)
+        calls.append({"dose": d.id, "text": text, "spoken_in": spoken_in, "voice": voice})
     return {"messages": [answer.due_text(r) for r in store.inbox(sender)], "calls": calls}
 
 
@@ -191,11 +192,12 @@ def press(dose_id: int, body: Press, request: Request) -> dict:
     m = store.med(d.med_id) if d else None
     if m is None or m.number != _web_sender(request):
         raise HTTPException(status_code=404)
-    script, _, _ = answer.call_voice(m.lang)
+    script, say_lang, _ = answer.call_voice(m.lang)
+    voice = meds.browser_lang(say_lang)
     if body.digit == "1":
         answer.confirm_dose(dose_id)
-        return {"reply": script["thanks"]}
-    return {"reply": script["retry"]}
+        return {"reply": script["thanks"], "voice": voice}
+    return {"reply": script["retry"], "voice": voice}
 
 
 def _reply_later(to: str, text: str) -> None:
