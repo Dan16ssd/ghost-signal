@@ -5,6 +5,7 @@ Both are free, need no API key and allow automated use with a clear User-Agent.
 
 from __future__ import annotations
 
+import unicodedata
 from dataclasses import dataclass
 from urllib.parse import quote
 
@@ -61,6 +62,31 @@ def wikipedia(query: str, lang: str = "en", limit: int = 3) -> list[Source]:
     return out
 
 
+def exchange_rate(base: str, targets: list[str]) -> str | None:
+    """'1 USD = 54.66 EGP, 22,468 LAK (ExchangeRate-API, 26 Nov)', or None if a code is unknown."""
+    base = base.upper()
+    with _client() as http:
+        r = http.get(f"https://open.er-api.com/v6/latest/{base}")
+        if r.status_code == 404:
+            return None
+        r.raise_for_status()
+        data = r.json()
+    if data.get("result") != "success":
+        return None
+    rates = data["rates"]
+    parts = []
+    for t in targets:
+        t = t.upper()
+        if t not in rates or t == base:
+            continue
+        v = rates[t]
+        parts.append(f"{v:,.0f} {t}" if v >= 100 else f"{v:,.2f} {t}" if v >= 1 else f"{v:.4f} {t}")
+    if not parts:
+        return None
+    day = " ".join(data.get("time_last_update_utc", "").split()[1:3])  # e.g. "26 Nov"
+    return f"1 {base} = {', '.join(parts)} (ExchangeRate-API, {day})"
+
+
 WEATHER_CODES = {
     0: "clear", 1: "mostly clear", 2: "partly cloudy", 3: "cloudy",
     45: "fog", 48: "fog", 51: "light drizzle", 53: "drizzle", 55: "heavy drizzle",
@@ -70,8 +96,30 @@ WEATHER_CODES = {
 }
 
 
+# The geocoder only knows Latin-script names; map common local spellings.
+CITY_NAMES = {
+    # Egypt
+    "القاهرة": "Cairo", "الإسكندرية": "Alexandria", "الاسكندرية": "Alexandria", "الجيزة": "Giza",
+    "أسوان": "Aswan", "اسوان": "Aswan", "الأقصر": "Luxor", "الاقصر": "Luxor", "بورسعيد": "Port Said",
+    "السويس": "Suez", "المنصورة": "Mansoura", "طنطا": "Tanta", "أسيوط": "Asyut", "اسيوط": "Asyut",
+    "المنيا": "Minya", "سوهاج": "Sohag", "الغردقة": "Hurghada", "شرم الشيخ": "Sharm El Sheikh",
+    "الفيوم": "Faiyum", "الزقازيق": "Zagazig", "دمياط": "Damietta", "قنا": "Qena",
+    # Laos
+    "ວຽງຈັນ": "Vientiane", "ນະຄອນຫຼວງວຽງຈັນ": "Vientiane", "ຫຼວງພະບາງ": "Luang Prabang",
+    "ປາກເຊ": "Pakse", "ສະຫວັນນະເຂດ": "Savannakhet", "ວັງວຽງ": "Vang Vieng", "ຫຼວງນ້ຳທາ": "Luang Namtha",
+    "ອຸດົມໄຊ": "Oudomxay", "ຊຳເໜືອ": "Xam Neua", "ທ່າແຂກ": "Thakhek", "ໂພນສະຫວັນ": "Phonsavan",
+    "ອັດຕະປື": "Attapeu", "ສາລະວັນ": "Salavan", "ບໍ່ແກ້ວ": "Ban Houayxay", "ໄຊຍະບູລີ": "Sainyabuli",
+}
+
+
+def _ascii(text: str) -> str:
+    """'Aswān' -> 'Aswan', so the reply stays in the cheaper GSM-7 SMS encoding."""
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode() or text
+
+
 def weather(city: str) -> str | None:
     """Short forecast text for a city, or None if the city is unknown."""
+    city = CITY_NAMES.get(city.strip(), city.strip())
     with _client() as http:
         g = http.get(
             "https://geocoding-api.open-meteo.com/v1/search",
@@ -100,7 +148,7 @@ def weather(city: str) -> str | None:
     now = WEATHER_CODES.get(cur["weather_code"], "mixed")
     tmr = WEATHER_CODES.get(day["weather_code"][1], "mixed")
     return (
-        f"{place['name']}: now {round(cur['temperature_2m'])}C, {now}. "
+        f"{_ascii(place['name'])}: now {round(cur['temperature_2m'])}C, {now}. "
         f"Tomorrow {round(day['temperature_2m_min'][1])}-{round(day['temperature_2m_max'][1])}C, {tmr}, "
         f"rain chance {day['precipitation_probability_max'][1] or 0}%. (Open-Meteo)"
     )

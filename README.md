@@ -4,8 +4,10 @@
 
 Ghost Signal brings the web to a "dead" technology: plain SMS on basic phones.
 Text a question to the Ghost Signal number; it searches trusted public sources
-(Wikipedia in Lao and English, Open-Meteo weather) and texts back a short answer
-with its source, in Lao or English.
+(Wikipedia, Open-Meteo weather, exchange rates) and texts back a short answer
+with its source, in **English, Lao or Arabic**.
+
+We are a two-person team from **Laos and Egypt**, so those are our launch languages.
 
 Built for **Kiroween 2026**, category **Resurrection**.
 
@@ -18,14 +20,20 @@ Built for **Kiroween 2026**, category **Resurrection**.
 |---|---|
 | `What is dengue fever?` | 1-3 SMS answer + source link |
 | `WEATHER Vientiane` | Now + tomorrow forecast |
+| `RATE` / `سعر USD` / `ອັດຕາ USD` | Dollar in Egyptian pounds, kip... |
 | `ໄຂ້ຍຸງລາຍ ແມ່ນຫຍັງ` | Answer in Lao |
+| `ما هي حمى الضنك؟` | Answer in Arabic |
+| `طقس القاهرة` | Cairo forecast |
 | `HELP` | Commands |
 
 ## Why
 
-Millions of people have a phone but no smartphone or no mobile data. In rural Laos a
-basic phone and SMS still reach people that apps don't. Ghost Signal gives them answers
-from the open web through the oldest messaging channel phones have.
+Hundreds of millions of people have a phone but no smartphone or no mobile data.
+In rural Laos and in Upper Egypt, a basic phone and SMS still reach people that apps
+don't, and prices change fast (kip and Egyptian pound), so a trusted health fact, a
+forecast or today's exchange rate makes a daily difference. Ghost Signal gives them
+answers from the open web through the oldest messaging channel phones have.
+Adding a language is a few lines in `ghost_signal/lang.py`.
 
 ## How it works
 

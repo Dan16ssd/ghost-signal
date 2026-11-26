@@ -4,7 +4,7 @@
 - SMS: Twilio. Webhook `POST /sms`; signature checked with `TWILIO_AUTH_TOKEN`.
   When Twilio send credentials exist, reply with empty TwiML and send the answer
   through the Twilio API in a background task (avoids the 15 s webhook limit).
-- Sources: Wikipedia (lo + en) and Open-Meteo. No keys. The User-Agent must contain
+- Sources: Wikipedia (question's language, then en), Open-Meteo, ExchangeRate-API (open.er-api.com). No keys. The User-Agent must contain
   contact info (`GHOST_CONTACT`) or Wikipedia returns 403.
 - AI: Anthropic SDK, model `claude-opus-5-5`, effort `low`, server-side refusal
   fallbacks on. Without credentials, fall back to the first sentences of the source.

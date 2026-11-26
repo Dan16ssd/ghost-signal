@@ -137,3 +137,56 @@ def test_ai_not_found(monkeypatch):
     monkeypatch.setattr(_FakeClaude, "reply", "NOT_FOUND")
     monkeypatch.setattr(anthropic, "Anthropic", _FakeClaude)
     assert answer.handle("dengue").kind == "not_found"
+
+
+def test_detect_languages():
+    assert lang.detect("ما هي حمى الضنك؟") == "ar"
+    assert lang.detect("ສະບາຍດີ") == "lo"
+    assert lang.detect("สวัสดี") == "th"
+    assert lang.detect("hello") == "en"
+
+
+def test_arabic_help_and_not_found():
+    assert lang.detect(answer.handle("مساعدة").text) == "ar"
+    r = answer.handle("سؤال بلا إجابة")
+    assert r.lang == "ar" and r.kind == "not_found" and lang.detect(r.text) == "ar"
+
+
+def test_arabic_weather_command():
+    assert answer.handle("طقس القاهرة").kind == "weather"
+
+
+def test_rate_command(monkeypatch):
+    calls = []
+
+    def fake_rate(base, targets):
+        calls.append((base, targets))
+        return f"1 {base} = " + ", ".join(f"1 {t}" for t in targets)
+
+    monkeypatch.setattr(sources, "exchange_rate", fake_rate)
+    assert answer.handle("RATE").kind == "rate"
+    assert calls[-1][0] == "USD" and "EGP" in calls[-1][1] and "LAK" in calls[-1][1]
+    answer.handle("سعر USD")
+    assert calls[-1] == ("USD", ["EGP"])  # Arabic speaker gets Egyptian pounds
+    answer.handle("ອັດຕາ USD")
+    assert calls[-1] == ("USD", ["LAK"])  # Lao speaker gets kip
+    answer.handle("rate EUR THB")
+    assert calls[-1] == ("EUR", ["THB"])
+
+
+def test_lao_question_translated_for_english_search(monkeypatch):
+    import anthropic
+
+    seen = []
+    real = sources.wikipedia
+
+    def wiki(q, lang="en", limit=3):
+        seen.append((q, lang))
+        return real(q, lang, limit)
+
+    monkeypatch.setattr(sources, "wikipedia", wiki)
+    monkeypatch.setattr(answer, "settings", Settings(use_llm=True))
+    monkeypatch.setattr(_FakeClaude, "reply", "dengue fever")
+    monkeypatch.setattr(anthropic, "Anthropic", _FakeClaude)
+    answer.handle("ໄຂ້ເລືອດອອກ")
+    assert ("dengue fever", "en") in seen
