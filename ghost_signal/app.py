@@ -14,7 +14,7 @@ from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
-from . import answer, twilio_sms
+from . import answer, countries, twilio_sms
 from . import lang as L
 from .config import settings
 
@@ -51,20 +51,23 @@ def health() -> dict:
 
 class Ask(BaseModel):
     text: str = Field(max_length=480)
+    country: str | None = Field(default=None, max_length=2)  # simulator: pretend to text from here
 
 
 @app.post("/api/ask")
 def ask(body: Ask, request: Request) -> dict:
     sender = f"web:{request.client.host if request.client else 'unknown'}"
+    country = countries.from_code(body.country)
     if not allowed(sender):
-        language = L.detect(body.text)
-        return {"reply": L.msg("rate_limited", language), "segments": 1, "encoding": "", "kind": "rate_limited"}
-    r = answer.handle(body.text)
-    return {"reply": r.text, "segments": r.segments, "encoding": r.encoding, "kind": r.kind}
+        language = L.detect(body.text, country.lang if country else None)
+        return {"reply": answer.message("rate_limited", language), "segments": 1, "encoding": "",
+                "kind": "rate_limited", "lang": language}
+    r = answer.handle(body.text, country=country)
+    return {"reply": r.text, "segments": r.segments, "encoding": r.encoding, "kind": r.kind, "lang": r.lang}
 
 
 def _reply_later(to: str, text: str) -> None:
-    r = answer.handle(text)
+    r = answer.handle(text, sender=to)
     try:
         twilio_sms.send_sms(to, r.text)
     except Exception:  # noqa: BLE001
@@ -86,12 +89,14 @@ async def sms_webhook(request: Request, background: BackgroundTasks) -> Response
     sender = params.get("From", "unknown")
     text = params.get("Body", "")
     if not allowed(sender):
-        return Response(twilio_sms.twiml(L.msg("rate_limited", L.detect(text))), media_type="application/xml")
+        country = countries.from_number(sender)
+        language = L.detect(text, country.lang if country else None)
+        return Response(twilio_sms.twiml(answer.message("rate_limited", language)), media_type="application/xml")
 
     if settings.twilio_can_send:
         # Answer after Twilio's 15 s webhook window: reply empty now, text back when ready.
         background.add_task(_reply_later, sender, text)
         return Response(twilio_sms.twiml(None), media_type="application/xml")
 
-    r = answer.handle(text)
+    r = answer.handle(text, sender=sender)
     return Response(twilio_sms.twiml(r.text), media_type="application/xml")

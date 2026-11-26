@@ -30,6 +30,7 @@ def offline(monkeypatch):
         sources, "weather", lambda city: None if city == "Nowhere" else f"{city}: now 31C, partly cloudy. (Open-Meteo)"
     )
     appmod._recent.clear()
+    answer._translated.cache_clear()
 
 
 def test_help():

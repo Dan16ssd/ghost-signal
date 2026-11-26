@@ -6,8 +6,9 @@
 ### Acceptance criteria
 1. WHEN an SMS arrives at the Twilio number THE SYSTEM SHALL reply to the sender with one answer.
 2. THE SYSTEM SHALL keep every reply within 3 SMS parts.
-3. WHEN the question is in Lao or Arabic script THE SYSTEM SHALL reply in that language.
+3. WHEN the question is in any supported language (by script, common words, or the sender's country) THE SYSTEM SHALL reply in that language and search that language's Wikipedia first.
 6. WHEN the local-language Wikipedia has no match THE SYSTEM SHALL search English Wikipedia and still reply in the question's language.
+7. WHEN the local-language sources do not answer the question THE SYSTEM SHALL retry with English sources before replying "not found".
 4. WHEN no trusted source answers the question THE SYSTEM SHALL reply with a "not found" message instead of guessing.
 5. WHEN an answer is given THE SYSTEM SHALL include the source link if it fits.
 
@@ -16,7 +17,14 @@
 
 1. WHEN the message is HELP (or empty, ຊ່ວຍ, or مساعدة) THE SYSTEM SHALL reply with usage instructions.
 2. WHEN the message is WEATHER <city> (or ອາກາດ / طقس <city>) THE SYSTEM SHALL reply with current weather and tomorrow's forecast, accepting Lao and Arabic city names.
-3. WHEN the message is RATE [FROM] [TO...] (or ອັດຕາ / سعر) THE SYSTEM SHALL reply with exchange rates; with one currency it SHALL convert to the sender's local currency (LAK for Lao, EGP for Arabic).
+3. WHEN the message is RATE [FROM] [TO...] (or ອັດຕາ / سعر) THE SYSTEM SHALL reply with exchange rates; with one currency it SHALL convert to the sender's local currency (from the sender's phone number country, e.g. +234 gives NGN; else LAK for Lao, EGP for Arabic).
+
+## Requirement 5: Any country
+**User story:** As someone outside Laos and Egypt, I want the same service in my language and currency.
+
+1. WHEN an SMS arrives THE SYSTEM SHALL work out the sender's country from the calling code.
+2. WHEN fixed messages have no hand-written version in the sender's language THE SYSTEM SHALL use an AI translation, cached, or English if the AI is off.
+3. THE simulator SHALL let the visitor choose the country they are "texting from".
 
 ## Requirement 3: Safety and cost
 1. WHEN a request to /sms has an invalid Twilio signature THE SYSTEM SHALL reject it with 403.
