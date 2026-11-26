@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Run tests on save",
+  "description": "When Python code in ghost_signal/ or tests/ is saved, run the test suite and fix failures without weakening tests.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "ghost_signal/**/*.py",
+      "tests/**/*.py"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "A Python file was just saved. Run `python -m pytest -q -p no:warnings`. If all tests pass, reply with one line: the saved file and the test count. If a test fails, find the cause and fix the code with the smallest change that matches .kiro/specs and .kiro/steering/sms-rules.md. Never delete, skip or loosen a test, and never lower Hypothesis example counts. If you think the test is wrong, explain why and ask first."
+  }
+}

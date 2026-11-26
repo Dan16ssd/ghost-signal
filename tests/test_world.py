@@ -123,3 +123,9 @@ def test_ai_retries_english_when_local_wikipedia_misses(monkeypatch):
     assert r.kind == "answer" and r.text.startswith("Dengue huenezwa na mbu")
     assert seen == [("Homa ya dengue ni nini", "sw"), ("dengue fever", "en")]
     assert "en.wikipedia.org" in r.text
+
+
+def test_every_message_is_hand_written_in_all_launch_languages():
+    keys = set(lang.MESSAGES["en"])
+    for code in ("lo", "ar"):
+        assert set(lang.MESSAGES[code]) == keys, code

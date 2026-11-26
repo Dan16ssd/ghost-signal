@@ -3,7 +3,7 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from ghost_signal import answer, app as appmod, lang, sources, twilio_sms
+from ghost_signal import answer, app as appmod, lang, sources, store, twilio_sms
 from ghost_signal.config import Settings
 
 
@@ -29,7 +29,7 @@ def offline(monkeypatch):
     monkeypatch.setattr(
         sources, "weather", lambda city: None if city == "Nowhere" else f"{city}: now 31C, partly cloudy. (Open-Meteo)"
     )
-    appmod._recent.clear()
+    store.open_db(":memory:")
     answer._translated.cache_clear()
 
 

@@ -1,0 +1,17 @@
+{
+  "enabled": true,
+  "name": "Keep HELP and README commands in sync",
+  "description": "When commands or fixed messages change, make the HELP replies, README command table and simulator examples agree.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "ghost_signal/answer.py",
+      "ghost_signal/lang.py"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Commands or fixed messages may have changed. Compare the command words in ghost_signal/answer.py (HELP, WEATHER, RATE, REMIND, STOP, START), the 'help' message in every language in ghost_signal/lang.py, the command table in README.md and the example buttons in ghost_signal/static/index.html. List any command missing from one of them and update the out-of-date place. Each help message must still fit in 2 SMS parts (check with the ghost-signal MCP tool check_sms)."
+  }
+}

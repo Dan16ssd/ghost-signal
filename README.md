@@ -1,5 +1,7 @@
 # 👻 Ghost Signal
 
+[![tests](https://github.com/Dan16ssd/ghost-signal/actions/workflows/tests.yml/badge.svg)](https://github.com/Dan16ssd/ghost-signal/actions/workflows/tests.yml)
+
 **No smartphone? No data? Text your question and the web texts back.**
 
 Ghost Signal brings the web to a "dead" technology: plain SMS on basic phones.
@@ -29,6 +31,10 @@ Built for **Kiroween 2026**, category **Resurrection**.
 | `Dalili za malaria ni zipi?` (from Kenya) | Answer in Swahili |
 | `डेंगू के लक्षण क्या हैं?` (from India) | Answer in Hindi |
 | `RATE` (from Nigeria) | Dollar in naira |
+| `REMIND 8pm take medicine` | An SMS at 8pm **in your own time zone** |
+| `REMIND in 2 hours call mum` / `REMIND LIST` / `REMIND DEL 1` | Set, list, delete |
+| `ذكرني غدا الساعة 8 مساء بالدواء` | Reminder set in Arabic, Cairo time |
+| `STOP` / `START` | No more texts / welcome back |
 | `HELP` | Commands |
 
 ## Why
@@ -59,7 +65,11 @@ Phone <--SMS-- Twilio <--API------ fit to <= 3 SMS parts (67 chars each in Lao/A
 - Answers come **only** from sources; if nothing fits, it says so instead of guessing.
 - Every reply fits in at most 3 SMS parts. This rule is checked by property-based tests.
 - Health answers always add "see a health worker".
-- Each number is limited to 20 questions per hour. No message is stored.
+- **Reminders** use the time zone of the sender's country and arrive as a new SMS.
+- **Built like a real SMS service:** `STOP` always wins (opt-out also cancels reminders),
+  each Twilio message is answered once even if Twilio retries, each number gets 20 questions
+  an hour, all AI calls together have a daily budget (above it, answers fall back to plain
+  source extracts), and phone numbers are masked in logs. Message texts are never stored.
 
 ## Run locally
 
@@ -69,7 +79,14 @@ cp .env.example .env        # fill in GHOST_CONTACT (required by Wikipedia), key
 uvicorn ghost_signal.app:app --reload
 # open http://127.0.0.1:8000
 python -m pytest -q          # tests (no network needed)
+python -m ghost_signal.mcp_server   # Ghost Signal as an MCP server (tools for Kiro / any MCP client)
 ```
+
+### Deploy
+
+`Dockerfile` + `render.yaml` (Render free tier): create a Blueprint from this repo, then set
+`ANTHROPIC_API_KEY`, the Twilio values and `PUBLIC_BASE_URL` in the dashboard. Mount a disk
+at `/data` to keep opt-outs and reminders across redeploys.
 
 Without an Anthropic key, answers fall back to the first sentences of the source.
 
@@ -81,7 +98,16 @@ Without an Anthropic key, answers fall back to the first sentences of the source
 
 ## How we used Kiro
 
-*(Write-up in progress: specs, steering, hooks, MCP and property-based testing; see `.kiro/`.)*
+| Kiro feature | Where | What it does for us |
+|---|---|---|
+| **Specs** (5) | `.kiro/specs/` | `ghost-signal`, `sms-gateway`, `reminders`, `phone-simulator`, `mcp-server`: EARS requirements, design, tasks |
+| **Steering** (6) | `.kiro/steering/` | product, tech, structure, plus `sms-rules`, `languages`, `design` that load only for matching files |
+| **Hooks** (4) | `.kiro/hooks/` | tests on save, secret + phone-number scan, HELP/README sync, language review of Lao/Arabic |
+| **Custom agents** (2) | `.kiro/agents/` | `language-reviewer`, `gateway-auditor` |
+| **MCP** | `.kiro/settings/mcp.json` | Ghost Signal *is* an MCP server: the agent tests real replies in any language with `ask` and `check_sms` |
+| **Property tests** | `tests/` | SMS length for any text; reminder times for any clock time in four time zones (it caught a daylight-saving bug) |
+
+Full story: [`docs/kiro-journal.md`](docs/kiro-journal.md). *(Detailed write-up with screenshots in progress.)*
 
 ## License
 

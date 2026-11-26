@@ -135,3 +135,44 @@ def from_code(code: str | None) -> Country | None:
     """'EG' -> Egypt (used by the web simulator's country picker)."""
     code = (code or "").upper()
     return next((c for c in _BY_PREFIX.values() if c.code == code), None)
+
+
+# Main time zone per country (big countries use their most populous zone).
+TIMEZONES = {
+    "US": "America/New_York", "RU": "Europe/Moscow", "EG": "Africa/Cairo", "ZA": "Africa/Johannesburg",
+    "GR": "Europe/Athens", "NL": "Europe/Amsterdam", "FR": "Europe/Paris", "ES": "Europe/Madrid",
+    "IT": "Europe/Rome", "RO": "Europe/Bucharest", "GB": "Europe/London", "PL": "Europe/Warsaw",
+    "DE": "Europe/Berlin", "PE": "America/Lima", "MX": "America/Mexico_City", "CU": "America/Havana",
+    "AR": "America/Argentina/Buenos_Aires", "BR": "America/Sao_Paulo", "CL": "America/Santiago",
+    "CO": "America/Bogota", "VE": "America/Caracas", "MY": "Asia/Kuala_Lumpur", "AU": "Australia/Sydney",
+    "ID": "Asia/Jakarta", "PH": "Asia/Manila", "NZ": "Pacific/Auckland", "SG": "Asia/Singapore",
+    "TH": "Asia/Bangkok", "JP": "Asia/Tokyo", "KR": "Asia/Seoul", "VN": "Asia/Ho_Chi_Minh",
+    "CN": "Asia/Shanghai", "TR": "Europe/Istanbul", "IN": "Asia/Kolkata", "PK": "Asia/Karachi",
+    "AF": "Asia/Kabul", "LK": "Asia/Colombo", "MM": "Asia/Yangon", "IR": "Asia/Tehran",
+    "SS": "Africa/Juba", "MA": "Africa/Casablanca", "DZ": "Africa/Algiers", "TN": "Africa/Tunis",
+    "LY": "Africa/Tripoli", "GM": "Africa/Banjul", "SN": "Africa/Dakar", "ML": "Africa/Bamako",
+    "CI": "Africa/Abidjan", "BF": "Africa/Ouagadougou", "NE": "Africa/Niamey", "BJ": "Africa/Porto-Novo",
+    "LR": "Africa/Monrovia", "SL": "Africa/Freetown", "GH": "Africa/Accra", "NG": "Africa/Lagos",
+    "TD": "Africa/Ndjamena", "CM": "Africa/Douala", "CD": "Africa/Kinshasa", "AO": "Africa/Luanda",
+    "SD": "Africa/Khartoum", "RW": "Africa/Kigali", "ET": "Africa/Addis_Ababa", "SO": "Africa/Mogadishu",
+    "KE": "Africa/Nairobi", "TZ": "Africa/Dar_es_Salaam", "UG": "Africa/Kampala", "BI": "Africa/Bujumbura",
+    "MZ": "Africa/Maputo", "ZM": "Africa/Lusaka", "MG": "Indian/Antananarivo", "ZW": "Africa/Harare",
+    "MW": "Africa/Blantyre", "UA": "Europe/Kyiv", "HT": "America/Port-au-Prince", "BO": "America/La_Paz",
+    "EC": "America/Guayaquil", "KH": "Asia/Phnom_Penh", "LA": "Asia/Vientiane", "BD": "Asia/Dhaka",
+    "LB": "Asia/Beirut", "JO": "Asia/Amman", "SY": "Asia/Damascus", "IQ": "Asia/Baghdad",
+    "SA": "Asia/Riyadh", "YE": "Asia/Aden", "PS": "Asia/Gaza", "AE": "Asia/Dubai", "NP": "Asia/Kathmandu",
+    "TJ": "Asia/Dushanbe", "AZ": "Asia/Baku", "GE": "Asia/Tbilisi", "KG": "Asia/Bishkek",
+    "UZ": "Asia/Tashkent",
+}
+
+
+def timezone(country: Country | None) -> str:
+    """IANA time zone for a country; UTC when unknown."""
+    return TIMEZONES.get(country.code, "UTC") if country else "UTC"
+
+
+def mask(number: str) -> str:
+    """'+201001234567' -> '+20*******567' for logs and screens."""
+    if not number.startswith("+") or len(number) < 7:
+        return number
+    return number[:3] + "*" * (len(number) - 6) + number[-3:]

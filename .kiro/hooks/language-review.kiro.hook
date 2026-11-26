@@ -1,0 +1,16 @@
+{
+  "enabled": true,
+  "name": "Native-language review of fixed messages",
+  "description": "When fixed messages change, ask the language-reviewer agent to check Lao and Arabic wording and SMS length.",
+  "version": "1",
+  "when": {
+    "type": "fileEdited",
+    "patterns": [
+      "ghost_signal/lang.py"
+    ]
+  },
+  "then": {
+    "type": "askAgent",
+    "prompt": "Fixed messages changed in ghost_signal/lang.py. Act as the language-reviewer agent (.kiro/agents/language-reviewer.md): for each changed Lao and Arabic message, check meaning against the English one, natural wording for a rural reader, and SMS length with the ghost-signal MCP tool check_sms. Report suggestions; mark anything that needs a native speaker (Danny for Lao, Mohamed for Arabic) in .kiro/specs/ghost-signal/tasks.md task 7d."
+  }
+}

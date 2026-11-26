@@ -1,0 +1,21 @@
+{
+  "mcpServers": {
+    "ghost-signal": {
+      "command": "python",
+      "args": [
+        "-m",
+        "ghost_signal.mcp_server"
+      ],
+      "env": {
+        "GHOST_USE_LLM": "false",
+        "GHOST_DB": ":memory:"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "check_sms",
+        "detect_language",
+        "fixed_messages"
+      ]
+    }
+  }
+}

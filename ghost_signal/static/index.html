@@ -46,6 +46,17 @@
   .from { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: .9rem; }
   .from select { font: inherit; background: var(--key); color: var(--key-ink); border: 0; border-radius: 10px;
     padding: 6px 10px; }
+  .softkeys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 18px; }
+  .keypad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: 10px; }
+  .keypad button { padding: 6px 0; line-height: 1.1; border-radius: 12px; }
+  .keypad b { display: block; font-size: 1.05rem; }
+  .keypad small { display: block; font-size: .62rem; color: var(--muted); letter-spacing: .08em; min-height: .8em; }
+  button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--glow); outline-offset: 2px; }
+  .guide { margin: 0; min-height: 1.4em; color: var(--glow); font-size: .9rem; text-align: center; max-width: 30rem; }
+  .ghost { position: fixed; bottom: 12px; right: 16px; font-size: 1.8rem; opacity: .0; transition: opacity .4s; pointer-events: none; }
+  .ghost.on { opacity: .9; animation: float 1.6s ease-in-out infinite; }
+  @keyframes float { 50% { transform: translateY(-10px); } }
+  @media (prefers-reduced-motion: reduce) { .blink, .ghost.on { animation: none; } }
   footer { color: var(--muted); font-size: .8rem; text-align: center; max-width: 30rem; }
 </style>
 </head>
@@ -77,15 +88,18 @@
       <div class="bar"><span>▂▄▆ GHOST</span><span id="clock"></span><span>▮▮▮</span></div>
       <div class="log" id="log" aria-live="polite"></div>
       <form class="compose" id="form">
-        <input id="text" maxlength="480" placeholder="Type a question..." autocomplete="off" aria-label="Message">
+        <input id="text" dir="auto" maxlength="480" placeholder="Type a question..." autocomplete="off" aria-label="Message">
       </form>
     </div>
-    <div class="keys">
+    <div class="softkeys">
       <button type="button" data-ex="HELP">Help</button>
-      <button type="button" data-clear>Clear</button>
+      <button type="button" data-clear aria-label="Delete last letter, hold to clear the screen">⌫ Clear</button>
       <button type="button" class="send" id="send">Send</button>
     </div>
+    <div class="keypad" id="keypad" aria-label="Old phone keypad: tap a key several times to pick a letter"></div>
   </div>
+  <p class="guide" id="guide" aria-live="polite"></p>
+  <div class="ghost" id="ghost" aria-hidden="true">👻</div>
 
   <div class="examples" aria-label="Example messages">
     <button type="button" data-ex="How do I treat dengue fever?">Dengue fever</button>
@@ -98,6 +112,7 @@
     <button type="button" data-ex="डेंगू के लक्षण क्या हैं?" data-country="IN">🇮🇳 डेंगू के लक्षण</button>
     <button type="button" data-ex="¿Cómo se previene el cólera?" data-country="MX">🇲🇽 ¿Cólera?</button>
     <button type="button" data-ex="RATE" data-country="NG">🇳🇬 RATE</button>
+    <button type="button" data-ex="REMIND in 1 min drink water">⏰ REMIND in 1 min</button>
   </div>
 
   <footer>Answers come from Wikipedia, Open-Meteo and ExchangeRate-API. Built for Laos and Egypt; works in 50+ languages. Your phone number tells it your country, so RATE shows your money. For health questions, always see a health worker.</footer>
@@ -107,6 +122,20 @@
   const input = document.getElementById('text');
   const clock = document.getElementById('clock');
   const countrySel = document.getElementById('country');
+  const guide = document.getElementById('guide');
+  const ghost = document.getElementById('ghost');
+  const HINTS = {
+    answer: 'The ghost found it. Real phones get this as plain SMS, source included.',
+    not_found: 'Nothing trusted came back from the crypt. Try fewer words, or another language.',
+    error: 'A spirit tripped over a cable. Try again in a moment.',
+    rate_limited: 'Twenty questions an hour per phone keeps the lights on. Come back later.',
+    weather: 'Try WEATHER and any city, in Lao or Arabic too.',
+    rate: 'Change "Texting from" and RATE answers in that country’s money.',
+    remind: 'Reminders arrive as a new SMS at that time, in your local time zone.',
+    stop: 'You are unsubscribed. Send START to bring the ghost back.',
+    start: 'The ghost is back. Ask anything.',
+    help: 'Tip: tap the keypad like an old phone, or just type.',
+  };
   setInterval(() => { clock.textContent = new Date().toTimeString().slice(0, 5); }, 1000);
   clock.textContent = new Date().toTimeString().slice(0, 5);
 
@@ -114,6 +143,7 @@
     const div = document.createElement('div');
     div.className = 'm ' + who;
     div.textContent = text;
+    div.dir = 'auto';  // Arabic replies read right to left
     if (meta) { const m = document.createElement('div'); m.className = 'meta'; m.textContent = meta; div.appendChild(m); }
     log.appendChild(div);
     log.scrollTop = log.scrollHeight;
@@ -127,16 +157,19 @@
     add(text, 'me');
     const wait = add('receiving', 'them');
     wait.classList.add('blink');
+    ghost.classList.add('on');
     try {
       const r = await fetch('/api/ask', { method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, country: countrySel.value || null }) });
       const data = await r.json();
       wait.remove();
-      add(data.reply, 'them', data.segments ? `${data.segments} SMS · ${data.encoding}` : '');
+      if (data.reply) add(data.reply, 'them', data.segments ? `${data.segments} SMS · ${data.encoding}` : '');
+      guide.textContent = HINTS[data.kind] || '';
     } catch (e) {
       wait.remove();
       add('No signal. Try again.', 'them');
     }
+    ghost.classList.remove('on');
   }
 
   document.getElementById('form').addEventListener('submit', e => { e.preventDefault(); send(input.value); });
@@ -145,7 +178,42 @@
     if (b.dataset.country) countrySel.value = b.dataset.country;
     send(b.dataset.ex);
   }));
-  document.querySelector('[data-clear]').addEventListener('click', () => { log.innerHTML = ''; });
+  // Clear: tap deletes one letter (like the C key), hold clears the screen.
+  const clearBtn = document.querySelector('[data-clear]');
+  let holdTimer = null;
+  clearBtn.addEventListener('pointerdown', () => { holdTimer = setTimeout(() => { log.innerHTML = ''; holdTimer = null; }, 600); });
+  clearBtn.addEventListener('pointerup', () => { if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; input.value = input.value.slice(0, -1); } });
+  clearBtn.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); input.value = input.value.slice(0, -1); } });
+
+  // Multi-tap keypad, like a real button phone: press 2 twice for "b".
+  const KEYS = [['1', '.,?!1'], ['2', 'abc2'], ['3', 'def3'], ['4', 'ghi4'], ['5', 'jkl5'], ['6', 'mno6'],
+                ['7', 'pqrs7'], ['8', 'tuv8'], ['9', 'wxyz9'], ['*', '*'], ['0', ' 0'], ['#', '#']];
+  const pad = document.getElementById('keypad');
+  let last = null, taps = 0, tapTimer = null;
+  for (const [k, letters] of KEYS) {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.innerHTML = `<b>${k}</b><small>${letters.replace(/[0-9*#]/g, '').replace(' ', '␣').toUpperCase()}</small>`;
+    b.setAttribute('aria-label', `${k} ${letters.replace(' ', 'space ')}`);
+    b.addEventListener('click', () => {
+      clearTimeout(tapTimer);
+      if (last === k) { input.value = input.value.slice(0, -1); taps = (taps + 1) % letters.length; }
+      else { taps = 0; }
+      input.value += letters[taps];
+      last = k;
+      tapTimer = setTimeout(() => { last = null; }, 900);
+    });
+    pad.appendChild(b);
+  }
+
+  // Reminders come back as new messages, like an SMS arriving later.
+  setInterval(async () => {
+    try {
+      const r = await fetch('/api/inbox');
+      const data = await r.json();
+      for (const m of data.messages) { add(m, 'them', 'new SMS'); guide.textContent = '⏰ A reminder just arrived.'; }
+    } catch (e) { /* offline: try again next tick */ }
+  }, 15000);
   add('👻 A ghost is listening. Text a question, or HELP for commands.', 'them');
 </script>
 </body>

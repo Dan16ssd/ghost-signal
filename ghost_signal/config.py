@@ -28,6 +28,11 @@ class Settings:
     max_segments: int = int(os.getenv("GHOST_MAX_SEGMENTS", "3"))
     # Abuse / cost guard
     max_questions_per_hour: int = int(os.getenv("GHOST_MAX_PER_HOUR", "20"))
+    # Daily cap on AI calls for everyone together; above it, answers fall back to plain extracts
+    max_ai_calls_per_day: int = int(os.getenv("GHOST_MAX_AI_PER_DAY", "2000"))
+    max_reminders: int = int(os.getenv("GHOST_MAX_REMINDERS", "5"))
+    # State (opt-outs, limits, reminders)
+    db_path: str = os.getenv("GHOST_DB", "ghost_signal.db")
     # Twilio
     twilio_account_sid: str = os.getenv("TWILIO_ACCOUNT_SID", "")
     twilio_auth_token: str = os.getenv("TWILIO_AUTH_TOKEN", "")

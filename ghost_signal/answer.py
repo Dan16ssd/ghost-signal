@@ -5,11 +5,13 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from functools import lru_cache
 from urllib.parse import unquote
 
 from . import lang as L
-from . import countries, sms, sources
+from . import countries, reminders, sms, sources, store
 from .config import settings
 
 log = logging.getLogger(__name__)
@@ -21,6 +23,11 @@ WEATHER_WORDS = {"weather", "ອາກາດ", "طقس", "الطقس", "clima", 
                  "cuaca", "मौसम", "আবহাওয়া", "погода", "hava", "wetter", "panahon", "thời_tiết"}
 RATE_WORDS = {"rate", "rates", "ອັດຕາ", "سعر", "صرف", "cambio", "taux", "câmbio", "kurs", "kiwango",
               "विनिमय", "курс", "döviz"}
+REMIND_WORDS = {"remind", "reminder", "ເຕືອນ", "ذكرني", "ذكّرني", "recuérdame", "recordar", "rappel", "rappelle",
+                "lembrar", "lembre", "nikumbushe", "ingatkan", "याद", "напомни"}
+# Carrier-standard opt-out / opt-in words (Twilio uses the same ones), plus local ones.
+STOP_WORDS = {"stop", "stopall", "unsubscribe", "end", "quit", "cancel", "ຢຸດ", "توقف", "إيقاف", "الغاء", "إلغاء"}
+START_WORDS = {"start", "unstop", "ເລີ່ມ", "ابدأ", "ابدا"}
 DEFAULT_RATE_TARGETS = ["EGP", "LAK", "THB", "EUR"]
 CURRENCY = re.compile(r"^[A-Za-z]{3}$")
 
@@ -41,7 +48,7 @@ Reply with the query only, nothing else."""
 class Reply:
     text: str
     lang: str
-    kind: str  # help | weather | rate | answer | not_found | error
+    kind: str  # help | weather | rate | answer | not_found | error | remind | stop | start | silent
 
     @property
     def segments(self) -> int:
@@ -74,9 +81,17 @@ def _extractive(found: list[sources.Source], language: str) -> str:
     return out or text[:budget]
 
 
+class BudgetSpent(RuntimeError):
+    """Today's AI budget for everyone is used up; callers fall back to no-AI answers."""
+
+
 def _claude(system: str, user: str, max_tokens: int = 2000) -> str | None:
     """One Claude call. Returns the text, or None on refusal."""
     import anthropic
+
+    if store.used_today("ai") >= settings.max_ai_calls_per_day:
+        raise BudgetSpent("daily AI budget reached")
+    store.count("ai")
 
     client = anthropic.Anthropic(timeout=30.0, max_retries=1)
     response = client.beta.messages.create(
@@ -172,18 +187,73 @@ def _rate(args: list[str], language: str, country: countries.Country | None) -> 
     return Reply(sms.fit(text, settings.max_segments), language, "rate")
 
 
+def _remind(args: list[str], sender: str, language: str, country: countries.Country | None) -> Reply:
+    sub = args[0].lower() if args else ""
+    if sub in {"list", ""}:
+        items = store.waiting(sender)
+        if not items:
+            return Reply(message("reminder_none", language), language, "remind")
+        lines = " ".join(f"{i}) {x.label} {x.what}" for i, x in enumerate(items, 1))
+        return Reply(sms.fit(f"{message('reminder_list', language)} {lines}", settings.max_segments), language, "remind")
+    if sub in {"del", "delete", "cancel", "x"} and len(args) > 1 and args[1].isdigit():
+        gone = store.cancel_reminder(sender, int(args[1]))
+        if gone is None:
+            return Reply(message("reminder_none", language), language, "remind")
+        return Reply(f"{message('reminder_deleted', language)} {gone.what}", language, "remind")
+    if len(store.waiting(sender)) >= settings.max_reminders:
+        return Reply(message("reminder_full", language), language, "remind")
+
+    now = datetime.now(ZoneInfo(countries.timezone(country)))
+    text = " ".join(args)
+    parsed = reminders.parse(text, now)
+    if parsed is None and settings.use_llm:
+        try:
+            prompt = reminders.AI_PROMPT.format(now=now.strftime("%Y-%m-%dT%H:%M"), weekday=now.strftime("%A"))
+            parsed = reminders.parse_ai_reply(_claude(prompt, text, max_tokens=1000), now)
+        except Exception:  # noqa: BLE001
+            log.exception("reminder AI parse failed")
+    if parsed is None or not reminders.in_range(parsed[0], now):
+        return Reply(message("reminder_bad", language), language, "remind")
+    due, what = parsed
+    what = what[:120]
+    shown = reminders.label(due, language)
+    store.add_reminder(sender, due.timestamp(), what, language, shown)
+    tz = "" if country else " UTC"
+    return Reply(sms.fit(f"{message('reminder_set', language)} {shown}{tz}: {what}", settings.max_segments),
+                 language, "remind")
+
+
+def due_text(r: store.Reminder) -> str:
+    """The SMS sent when a reminder is due."""
+    return sms.fit(f"{message('reminder_due', r.lang)} {r.what}", settings.max_segments)
+
+
 def handle(text: str, sender: str | None = None, country: countries.Country | None = None) -> Reply:
     """Answer one SMS. `sender` is the phone number (+20...); it tells us the country."""
     text = (text or "").strip()
+    sender = sender or "anonymous"
     country = country or countries.from_number(sender)
     language = L.detect(text, country.lang if country else None)
     words = text.split()
-    first = words[0].lower() if words else ""
+    first = words[0].lower().strip(".!") if words else ""
+
+    # STOP always wins, and nothing is sent to an opted-out number except the START answer.
+    if first in STOP_WORDS and len(words) == 1:
+        store.opt_out(sender)
+        return Reply(message("stopped", language), language, "stop")
+    if first in START_WORDS and len(words) == 1:
+        store.opt_in(sender)
+        return Reply(message("started", language), language, "start")
+    if store.opted_out(sender):
+        return Reply("", language, "silent")
 
     if not text or first in HELP_WORDS:
         return Reply(message("help", language), language, "help")
 
     try:
+        if first in REMIND_WORDS:
+            return _remind(words[1:], sender, language, country)
+
         if first in RATE_WORDS:
             return _rate(words[1:], language, country)
 
@@ -202,6 +272,7 @@ def handle(text: str, sender: str | None = None, country: countries.Country | No
                 return Reply(message("not_found", language), language, "not_found")
             return Reply(sms.fit(forecast, settings.max_segments), language, "weather")
 
+        store.count("question")
         found = _search(text, language)
         if not found:
             return Reply(message("not_found", language), language, "not_found")

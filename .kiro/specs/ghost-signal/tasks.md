@@ -14,7 +14,9 @@
 - [ ] 7d. Egyptian/Lao speakers check every fixed message for natural wording
 - [ ] 8. Trusted health source (e.g. WHO fact sheets) for health questions
 - [ ] 9. Deploy (public HTTPS URL), set `PUBLIC_BASE_URL`, connect the Twilio number
-- [ ] 10. Kiro hook: run `python -m pytest -q` when a file in `ghost_signal/` is saved
-- [ ] 11. Kiro MCP: add a server (e.g. fetch) and use it while building sources
+- [x] 10. Kiro hooks: tests on save, secret scan, HELP/README sync, language review
+- [x] 11. Kiro MCP: Ghost Signal's own MCP server (`.kiro/specs/mcp-server`)
 - [ ] 12. Spooky polish for the simulator (Costume-quality design)
 - [ ] 13. README write-up of how each Kiro feature was used (800+ words, screenshots)
+- [x] 14. Production pass: see specs `sms-gateway`, `reminders`, `phone-simulator`
+- [x] 15. CI, Dockerfile, Render blueprint

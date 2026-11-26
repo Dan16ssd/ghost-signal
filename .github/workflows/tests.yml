@@ -1,0 +1,18 @@
+name: tests
+on:
+  push:
+  pull_request:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: python -m pytest -q -p no:warnings
+      - name: No secrets in tracked files
+        run: |
+          ! git grep -nIE "sk-ant-[A-Za-z0-9_-]{20,}|AC[0-9a-f]{32}" -- . ":!tests"
