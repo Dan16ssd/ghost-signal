@@ -245,3 +245,20 @@ def test_meds_in_one_minute_for_demos():
     (d,) = store.doses_to_try(time.time() + 2 * 86400)
     assert 0 < d.due - time.time() <= 61
     assert store.meds_of(EGYPT)[0].what == "blood pressure pill"
+
+
+def test_call_language_follows_the_country_when_the_text_shows_none():
+    for number, expected in [("+8562055512345", "lo"), ("+919800000000", "hi"), ("+525500000000", "es")]:
+        answer.handle("MEDS 8am losartan", sender=number)
+        assert store.meds_of(number)[-1].lang == expected, number
+
+
+def test_written_language_beats_the_country():
+    answer.handle("MEDS 8am 8pm take the blood pressure pill", sender="+8562055500001")
+    assert store.meds_of("+8562055500001")[-1].lang == "en"
+
+
+def test_meds_lang_changes_the_call_language():
+    answer.handle("MEDS 8am losartan", sender="+8562055500002")
+    r = answer.handle("MEDS LANG en", sender="+8562055500002")
+    assert r.lang == "en" and store.meds_of("+8562055500002")[-1].lang == "en"

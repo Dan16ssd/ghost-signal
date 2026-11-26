@@ -107,6 +107,11 @@ def browser_lang(say_language: str) -> str:
     return BROWSER_LANG.get(say_language, say_language)
 
 
+def strip_times(text: str) -> str:
+    """'8am 8pm losartan' -> '  losartan' (times say nothing about the language)."""
+    return _TIME.sub(" ", text)
+
+
 def can_call(language: str) -> bool:
     return language in VOICES
 

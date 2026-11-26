@@ -276,8 +276,26 @@ def _spoken_what(what: str, language: str) -> str:
     return (out or "").strip()[:80]
 
 
+def call_language(text: str, language: str, country: countries.Country | None) -> str:
+    """Which language the medicine call speaks.
+
+    'ຢາ 8am ...' or 'MEDS 8am pastilla para la presión' show their language: use it.
+    'MEDS 8am losartan' (only a command, times and a drug name) shows none, and English would
+    be a guess: use the language of the phone's country instead (Laos -> Lao, heard in Thai).
+    """
+    words = meds.strip_times(reminders._IN.sub(" ", text))
+    if L.has_own_language(words) or country is None or not meds.can_call(country.lang):
+        return language
+    return country.lang
+
+
 def _meds(args: list[str], sender: str, language: str, country: countries.Country | None) -> Reply:
     sub = args[0].lower() if args else ""
+    if sub in {"lang", "language"} and len(args) > 1:  # MEDS LANG en: choose the call language
+        chosen = args[1].lower()[:3]
+        if not meds.can_call(chosen) or not store.set_meds_lang(sender, chosen):
+            return Reply(message("meds_none", language), language, "meds")
+        return Reply(message("meds_set", chosen).split(".")[0] + ".", chosen, "meds")
     if sub in {"list", ""}:
         items = store.meds_of(sender)
         if not items:
@@ -319,6 +337,7 @@ def _meds(args: list[str], sender: str, language: str, country: countries.Countr
     if parsed is None:
         return Reply(message("meds_bad", language), language, "meds")
     times, what = parsed
+    language = call_language(text, language, country)
     med_id = store.add_med(sender, ",".join(times), what, _spoken_what(what, language), language, tz)
     store.add_dose(med_id, meds.next_due(",".join(times), tz, time.time()))
     key = "meds_set" if meds.can_call(language) else "meds_sms"

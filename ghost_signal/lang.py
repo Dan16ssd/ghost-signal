@@ -44,6 +44,17 @@ SCRIPT_SHARED_BY = {
 }
 
 # Latin-script languages: a few very common short words each.
+# Medicine words, so 'MEDS 8am blood pressure pill' shows it is English (the call language).
+MED_WORDS = {
+    "en": "pill pills tablet tablets blood pressure sugar heart medicine take insulin vitamin morning night".split(),
+    "es": "pastilla pastillas presión azúcar corazón tomar medicina tableta".split(),
+    "fr": "comprimé comprimés pilule tension sucre cœur médicament prendre".split(),
+    "pt": "comprimido remédio pressão açúcar coração tomar".split(),
+    "sw": "dawa vidonge presha sukari moyo".split(),
+    "id": "obat tablet darah tekanan gula jantung minum".split(),
+    "tl": "gamot presyon dugo asukal puso inumin".split(),
+}
+
 LATIN_WORDS = {
     "en": "the what how is are a of to in do does can my i you why where when which for and".split(),
     "es": "el la los las que qué es como cómo de del en por para un una mi y está hay cuál dónde".split(),
@@ -74,9 +85,14 @@ def is_lao(text: str) -> bool:
     return any(_in("lo", c) for c in text)
 
 
+def has_own_language(text: str) -> bool:
+    """True when the text itself shows its language (its alphabet, or common words), not only a hint."""
+    return any(_in(code, c) for code in SCRIPTS for c in text) or _latin_guess(text, None) is not None
+
+
 def _latin_guess(text: str, hint: str | None) -> str | None:
     words = re.findall(r"\w+", text.lower())
-    scores = {code: sum(w in vocab for w in words) for code, vocab in LATIN_WORDS.items()}
+    scores = {code: sum(w in vocab or w in MED_WORDS.get(code, ()) for w in words) for code, vocab in LATIN_WORDS.items()}
     top = max(scores.values())
     if not top:
         return None

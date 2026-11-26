@@ -249,6 +249,13 @@ def stop_med(med_id: int) -> None:
     _run("UPDATE doses SET state = 'cancelled' WHERE med_id = ? AND state = 'waiting'", (med_id,))
 
 
+def set_meds_lang(number: str, lang: str) -> int:
+    """Change the call language of all of a person's medicines; returns how many."""
+    with _lock:
+        cur = _conn().execute("UPDATE meds SET lang = ? WHERE number = ? AND active = 1", (lang, number))
+        return cur.rowcount
+
+
 def stop_all_meds(number: str) -> None:
     for m in meds_of(number):
         stop_med(m.id)
