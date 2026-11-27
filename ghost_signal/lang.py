@@ -7,7 +7,12 @@ Latin text is matched by common words, then by the sender's country.
 
 from __future__ import annotations
 
+import logging
 import re
+
+from .data import load_messages, merge_missing
+
+log = logging.getLogger(__name__)
 
 # Scripts that point to one language (checked by counting letters).
 SCRIPTS = {
@@ -127,7 +132,7 @@ def detect(text: str, hint: str | None = None) -> str:
 MESSAGES = {
     "en": {
         "help": "GHOST SIGNAL: text any question for a short answer with its source. "
-        "WEATHER <city>. RATE <currency>. REMIND 8pm <what>. MEDS 8am <pill> = daily call. STOP ends texts.",
+        "WEATHER <city>. RATE <currency>. REMIND 8pm <what>. MEDS 8am <pill> = daily call. STOP ends texts, START resumes.",
         "not_found": "The ghosts searched every tomb and found no trusted answer. Try fewer, simpler words, or send HELP.",
         "error": "Boo! A spirit tripped over a cable. Please try again in a minute.",
         "rate_limited": "Even ghosts need rest: too many questions this hour. Please try again later.",
@@ -159,7 +164,7 @@ MESSAGES = {
     },
     "lo": {
         "help": "GHOST SIGNAL: ສົ່ງຄຳຖາມ ຮັບຄຳຕອບສັ້ນໆ. "
-        "ອາກາດ <ເມືອງ>. ອັດຕາ <ເງິນ>. ເຕືອນ 8pm <ເລື່ອງ>. MEDS 8am <ຢາ>. STOP",
+        "ອາກາດ <ເມືອງ>. ອັດຕາ <ເງິນ>. ເຕືອນ 8pm <ເລື່ອງ>. MEDS 8am <ຢາ>. STOP/START",
         "not_found": "ຂໍອະໄພ, ບໍ່ພົບຄຳຕອບທີ່ເຊື່ອຖືໄດ້. ລອງໃຊ້ຄຳສັບທີ່ງ່າຍກວ່ານີ້.",
         "error": "ຂໍອະໄພ, ລະບົບຂັດຂ້ອງຊົ່ວຄາວ. ກະລຸນາລອງໃໝ່.",
         "rate_limited": "ຖາມຫຼາຍເກີນໄປໃນຊົ່ວໂມງນີ້. ກະລຸນາລອງໃໝ່ພາຍຫຼັງ.",
@@ -191,7 +196,7 @@ MESSAGES = {
     },
     "ar": {
         "help": "GHOST SIGNAL: أرسل سؤالك لتصلك إجابة قصيرة. "
-        "طقس <مدينة>. سعر <عملة>. ذكرني <وقت> <أمر>. MEDS 8am <دواء>. STOP",
+        "طقس <مدينة>. سعر <عملة>. ذكرني <وقت> <أمر>. MEDS 8am <دواء>. STOP/START",
         "not_found": "عذراً، لم أجد إجابة موثوقة. جرّب كلمات أقل أو أبسط.",
         "error": "عذراً، الخدمة متوقفة مؤقتاً. حاول مرة أخرى بعد دقيقة.",
         "rate_limited": "أسئلة كثيرة في هذه الساعة. حاول لاحقاً.",
@@ -224,6 +229,31 @@ MESSAGES = {
 }
 
 
+_warned: set[str] = set()
+
+
+def _warn_missing(lang: str) -> None:
+    """Log once per language when its messages miss keys that English has."""
+    if lang in _warned or lang == "en" or lang not in MESSAGES:
+        return
+    missing = sorted(set(MESSAGES["en"]) - set(MESSAGES[lang]))
+    if missing:
+        _warned.add(lang)
+        log.warning("messages for %r miss %d key(s), using English for them: %s", lang, len(missing), ", ".join(missing))
+
+
+# Translations written at build time (data/messages/*.json); hand-written ones above win.
+merge_missing(MESSAGES, load_messages())
+for _code in list(MESSAGES):
+    _warn_missing(_code)
+
+
 def msg(key: str, lang: str) -> str:
-    """Hand-written message; English for languages we have not written (answer.py translates those)."""
-    return MESSAGES.get(lang, MESSAGES["en"])[key]
+    """Message in `lang`; English for languages we have not written (answer.py translates those)
+    and for single keys a language file misses."""
+    texts = MESSAGES.get(lang)
+    if texts is not None and key in texts:
+        return texts[key]
+    if texts is not None:
+        _warn_missing(lang)
+    return MESSAGES["en"][key]

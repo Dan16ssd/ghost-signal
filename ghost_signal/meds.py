@@ -15,6 +15,7 @@ import re
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
+from .data import load_call_scripts, merge_missing
 from .reminders import _TIME
 
 MAX_TIMES = 4
@@ -97,6 +98,8 @@ SCRIPT = {
         "retry": "จะโทรมาอีกครั้งในสิบนาทีค่ะ",
     },
 }
+# Scripts written at build time (data/call_scripts.json); hand-written ones above win.
+merge_missing(SCRIPT, load_call_scripts())
 
 
 # Twilio language code -> browser speech code (the simulator speaks the call aloud).

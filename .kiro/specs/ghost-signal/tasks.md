@@ -12,6 +12,7 @@
 - [x] 7e. Any country: calling code -> country/currency, 50+ languages, local Wikipedia,
       English retry, AI-translated fixed messages, simulator country picker
 - [ ] 7d. Lao and Tagalog speakers check the fixed messages for natural wording
+  - needs Danny (Lao): `help` now ends `STOP/START` with no explanation. Check it reads clearly; proposed ending: `STOP ຢຸດ, START ເລີ່ມໃໝ່` (about 14 more units, still 2 SMS).
 - [ ] 8. Trusted health source (e.g. WHO fact sheets) for health questions
 - [ ] 9. Deploy (public HTTPS URL), set `PUBLIC_BASE_URL`, connect the Twilio number
 - [x] 10. Kiro hooks: tests on save, secret scan, HELP/README sync, language review

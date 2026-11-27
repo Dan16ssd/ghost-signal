@@ -2,7 +2,7 @@
 
 Run these in Kiro, one at a time. Each task is small; test after each one.
 
-- [ ] 1. Loader: create `ghost_signal/data/__init__.py` with `load_call_scripts()` and
+- [x] 1. Loader: create `ghost_signal/data/__init__.py` with `load_call_scripts()` and
       `load_messages()`; merge into `meds.SCRIPT` and `lang.MESSAGES` without overwriting
       hand-written entries; skip `_` keys; log and skip broken files
       _Requirements: 1.2, 2.4_
