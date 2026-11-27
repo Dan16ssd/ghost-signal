@@ -35,31 +35,32 @@ def twiml(message: str | None) -> str:
 
 
 def send_sms(to: str, body: str) -> None:
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.twilio_account_sid}/Messages.json"
+    sid, token, sender = settings.twilio_account(to)
     r = httpx.post(
-        url,
-        data={"To": to, "From": settings.twilio_from_number, "Body": body},
-        auth=(settings.twilio_account_sid, settings.twilio_auth_token),
+        f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json",
+        data={"To": to, "From": sender, "Body": body},
+        auth=(sid, token),
         timeout=15,
     )
     r.raise_for_status()
 
 
-def get_call(call_sid: str) -> dict | None:
-    """The call as Twilio's API sees it (None if this account has no such call)."""
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.twilio_account_sid}/Calls/{call_sid}.json"
-    r = httpx.get(url, auth=(settings.twilio_account_sid, settings.twilio_auth_token), timeout=10)
+def get_call(call_sid: str, number: str = "") -> dict | None:
+    """The call as Twilio's API sees it, in the account that calls `number` (None if no such call)."""
+    sid, token, _ = settings.twilio_account(number)
+    r = httpx.get(f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Calls/{call_sid}.json",
+                  auth=(sid, token), timeout=10)
     return r.json() if r.status_code == 200 else None
 
 
 def place_call(to: str, twiml_url: str) -> None:
     """Start an outgoing voice call; Twilio fetches the call's TwiML from `twiml_url` (POST)."""
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.twilio_account_sid}/Calls.json"
+    sid, token, sender = settings.twilio_account(to)
     r = httpx.post(
-        url,
+        f"https://api.twilio.com/2010-04-01/Accounts/{sid}/Calls.json",
         # Only To/From/Url: Twilio trial accounts reject extra parameters (Url is fetched with POST by default).
-        data={"To": to, "From": settings.twilio_from_number, "Url": twiml_url},
-        auth=(settings.twilio_account_sid, settings.twilio_auth_token),
+        data={"To": to, "From": sender, "Url": twiml_url},
+        auth=(sid, token),
         timeout=15,
     )
     r.raise_for_status()

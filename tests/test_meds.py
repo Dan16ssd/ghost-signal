@@ -287,7 +287,7 @@ def _trial_live(monkeypatch, call):
     monkeypatch.setattr(appmod, "settings", live)
     monkeypatch.setattr(appmod, "_check_twilio_call", CHECK_CALL)
     monkeypatch.setattr(twilio_sms, "place_call", lambda to, url: None)
-    monkeypatch.setattr(twilio_sms, "get_call", lambda sid: call)
+    monkeypatch.setattr(twilio_sms, "get_call", lambda sid, number="": call)
     answer.handle("MEDS 8am test pill", sender=US)
     dose_id = _due_now(US)
     appmod.run_doses()
@@ -311,3 +311,12 @@ def test_unsigned_voice_request_for_unknown_call_refused(monkeypatch):
     assert c.post(f"/voice/dose/{dose_id}", data={"CallSid": "CA" + "1" * 32}).status_code == 403
     assert c.post(f"/voice/answer/{dose_id}", data={"CallSid": "bad", "Digits": "1"}).status_code == 403
     assert store.dose(dose_id).state == "waiting"
+
+
+def test_second_twilio_account_for_listed_prefixes():
+    s = dataclasses.replace(LIVE, twilio2_account_sid="AC2", twilio2_auth_token="tok2",
+                            twilio2_from_number="+15551112222", twilio2_prefixes=("+20",))
+    assert s.twilio_account(EGYPT) == ("AC2", "tok2", "+15551112222")
+    assert s.twilio_account(LAOS)[0] == "AC1"
+    assert s.twilio_token_for("AC2") == "tok2" and s.twilio_token_for("AC1") == "tok"
+    assert dataclasses.replace(s, twilio2_prefixes=()).twilio_account(EGYPT)[0] == "AC1"

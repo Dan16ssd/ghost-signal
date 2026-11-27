@@ -45,6 +45,14 @@ class Settings:
     twilio_account_sid: str = os.getenv("TWILIO_ACCOUNT_SID", "")
     twilio_auth_token: str = os.getenv("TWILIO_AUTH_TOKEN", "")
     twilio_from_number: str = os.getenv("TWILIO_FROM_NUMBER", "")
+    # Optional second Twilio account for numbers starting with TWILIO2_PREFIXES (e.g. "+20,+44").
+    # Free trials can only call testers in the account owner's own country, so a teammate abroad
+    # opens their own trial and their numbers are called from it.
+    twilio2_account_sid: str = os.getenv("TWILIO2_ACCOUNT_SID", "")
+    twilio2_auth_token: str = os.getenv("TWILIO2_AUTH_TOKEN", "")
+    twilio2_from_number: str = os.getenv("TWILIO2_FROM_NUMBER", "")
+    twilio2_prefixes: tuple[str, ...] = tuple(
+        p.strip() for p in os.getenv("TWILIO2_PREFIXES", "").split(",") if p.strip())
     # Public URL Twilio calls (needed to check Twilio's signature behind a proxy)
     public_base_url: str = os.getenv("PUBLIC_BASE_URL", "").rstrip("/")
     # Outgoing HTTP
@@ -55,6 +63,19 @@ class Settings:
     @property
     def user_agent(self) -> str:
         return f"GhostSignal/0.1 ({self.contact})" if self.contact else "GhostSignal/0.1"
+
+    def twilio_account(self, number: str = "") -> tuple[str, str, str]:
+        """(account SID, auth token, from number) to use for this phone number."""
+        if (self.twilio2_account_sid and self.twilio2_auth_token and self.twilio2_from_number
+                and any(number.startswith(p) for p in self.twilio2_prefixes)):
+            return self.twilio2_account_sid, self.twilio2_auth_token, self.twilio2_from_number
+        return self.twilio_account_sid, self.twilio_auth_token, self.twilio_from_number
+
+    def twilio_token_for(self, account_sid: str) -> str:
+        """Auth token that signs webhooks for this account (the main one if unknown)."""
+        if account_sid and account_sid == self.twilio2_account_sid and self.twilio2_auth_token:
+            return self.twilio2_auth_token
+        return self.twilio_auth_token
 
     @property
     def twilio_can_send(self) -> bool:

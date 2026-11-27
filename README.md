@@ -160,6 +160,12 @@ A **free Twilio trial** (no credit card) is enough for a demo: it includes one t
 2. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_FROM_NUMBER`, and `PUBLIC_BASE_URL` in `.env` (or your host's environment).
 3. In the Twilio number settings, set **A message comes in** to `POST https://<your-host>/sms`.
 4. Outbound medicine calls fetch TwiML from `https://<your-host>/voice/dose/<id>` (requires `PUBLIC_BASE_URL`).
+5. **Demo button:** list the phones in `GHOST_DEMO_NUMBERS` (comma-separated); the web page's "📞 Ring my real phone" then calls one of them in about 1 minute. No other number can be called this way.
+
+What we learned on Twilio's newer free "Limited trial":
+- Outgoing **calls work**; our own **SMS replies are blocked** (only Twilio's templates), so the call is the demo.
+- Voice webhooks arrive **unsigned**; the server then checks the `CallSid` with Twilio's API (a live call of our account to that person) before answering.
+- Testers must be in the **account owner's country**. A teammate abroad opens their own trial and sets `TWILIO2_ACCOUNT_SID`, `TWILIO2_AUTH_TOKEN`, `TWILIO2_FROM_NUMBER` and `TWILIO2_PREFIXES` (e.g. their country code); numbers with that prefix are called from their account.
 
 ## Limitations and Next
 
