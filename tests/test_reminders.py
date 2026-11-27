@@ -80,7 +80,7 @@ def test_unknown_country_says_utc():
 
 def test_list_delete_and_limit(monkeypatch):
     n = "+201001234567"
-    assert answer.handle("REMIND LIST", sender=n).text == answer.message("reminder_none", "en")
+    assert answer.handle("REMIND LIST", sender=n).text == answer.message("reminder_none", "ar")
     answer.handle("REMIND in 1 hour first", sender=n)
     answer.handle("REMIND in 2 hours second", sender=n)
     listed = answer.handle("remind list", sender=n).text

@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from .config import settings
 
-_lock = threading.Lock()
+_lock = threading.RLock()  # re-entrant: the first query may open the DB while holding it
 _db: sqlite3.Connection | None = None
 
 SCHEMA = """

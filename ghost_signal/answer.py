@@ -372,6 +372,8 @@ def handle(text: str, sender: str | None = None, country: countries.Country | No
     sender = sender or "anonymous"
     country = country or countries.from_number(sender)
     language = L.detect(text, country.lang if country else None)
+    if country and not L.has_own_language(text) and country.lang in L.MESSAGES:
+        language = country.lang  # 'YES', 'HELP', '1' from a Lao number: answer in Lao
     words = text.split()
     first = words[0].lower().strip(".!") if words else ""
 

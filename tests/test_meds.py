@@ -68,13 +68,13 @@ def test_meds_command_sets_daily_calls_in_local_time():
 
 
 def test_list_delete_limit_and_bad_input(monkeypatch):
-    assert answer.handle("MEDS LIST", sender=EGYPT).text == answer.message("meds_none", "en")
+    assert answer.handle("MEDS LIST", sender=EGYPT).text == answer.message("meds_none", "ar")
     answer.handle("MEDS 8am pill one", sender=EGYPT)
     answer.handle("MEDS 9pm pill two", sender=EGYPT)
     assert "pill two" in answer.handle("meds list", sender=EGYPT).text
     assert "pill one" in answer.handle("MEDS DEL 1", sender=EGYPT).text
     assert [m.what for m in store.meds_of(EGYPT)] == ["pill two"]
-    assert answer.handle("MEDS someday", sender=EGYPT).text == answer.message("meds_bad", "en")
+    assert answer.handle("MEDS someday", sender=EGYPT).text == answer.message("meds_bad", "ar")
     monkeypatch.setattr(meds, "MAX_MEDS", 1)
     assert answer.handle("MEDS 7am pill three", sender=EGYPT).text == answer.message("meds_full", "en")
 
@@ -174,8 +174,8 @@ def test_family_only_after_yes(monkeypatch):
 
 
 def test_family_number_must_be_valid():
-    assert answer.handle("MEDS FAMILY 12345", sender=EGYPT).text == answer.message("family_bad", "en")
-    assert answer.handle(f"MEDS FAMILY {EGYPT}", sender=EGYPT).text == answer.message("family_bad", "en")
+    assert answer.handle("MEDS FAMILY 12345", sender=EGYPT).text == answer.message("family_bad", "ar")
+    assert answer.handle(f"MEDS FAMILY {EGYPT}", sender=EGYPT).text == answer.message("family_bad", "ar")
 
 
 def test_texting_1_confirms_a_ringing_dose(monkeypatch):
@@ -184,7 +184,7 @@ def test_texting_1_confirms_a_ringing_dose(monkeypatch):
     answer.handle("MEDS 8am pill", sender=EGYPT)
     dose_id = _due_now(EGYPT)
     appmod.run_doses()
-    assert answer.handle("1", sender=EGYPT).text == answer.message("meds_taken", "en")
+    assert answer.handle("1", sender=EGYPT).text == answer.message("meds_taken", "ar")
     assert store.dose(dose_id).state == "confirmed"
     assert answer.handle("1", sender=EGYPT).kind != "meds"  # nothing ringing any more
 
