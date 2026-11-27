@@ -23,7 +23,8 @@ def _flag(name: str, default: bool) -> bool:
 @dataclass(frozen=True)
 class Settings:
     # Answer writing
-    use_llm: bool = _flag("GHOST_USE_LLM", True)
+    # No key -> no AI: answers use plain source extracts, fixed messages fall back to English.
+    use_llm: bool = _flag("GHOST_USE_LLM", True) and bool(os.getenv("ANTHROPIC_API_KEY"))
     model: str = os.getenv("GHOST_MODEL", "claude-opus-5-5")
     max_segments: int = int(os.getenv("GHOST_MAX_SEGMENTS", "3"))
     # Abuse / cost guard
