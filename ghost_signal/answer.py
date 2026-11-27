@@ -34,7 +34,7 @@ MEDS_WORDS = {"meds", "medicine", "medicines", "pills", "gamot", "ຢາ", "دو
 TAKEN_WORDS = {"1", "taken", "done", "ok", "nainom", "ກິນແລ້ວ", "تم", "اخذته", "أخذته"}
 YES_WORDS = {"yes", "y", "oo", "opo", "ໂດຍ", "ແມ່ນ", "نعم", "sí", "si", "oui", "sim", "ndiyo", "ya", "हाँ", "haan"}
 PHONE = re.compile(r"^\+\d{8,15}$")
-DEFAULT_RATE_TARGETS = ["LAK", "PHP", "THB", "EUR"]
+DEFAULT_RATE_TARGETS = ["LAK", "EGP", "PHP", "EUR"]
 CURRENCY = re.compile(r"^[A-Za-z]{3}$")
 
 SYSTEM_PROMPT = """You answer questions sent by SMS from basic phones, often by people with no internet (often older people in rural Laos and elsewhere).

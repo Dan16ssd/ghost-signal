@@ -81,6 +81,7 @@
     <select id="country" aria-label="Country you are texting from">
       <option value="">Anywhere</option>
       <option value="LA">🇱🇦 Laos</option>
+      <option value="EG">🇪🇬 Egypt</option>
       <option value="PH">🇵🇭 Philippines</option>
       <option value="KE">🇰🇪 Kenya</option>
       <option value="NG">🇳🇬 Nigeria</option>
@@ -115,6 +116,8 @@
   <div class="examples" aria-label="Example messages">
     <button type="button" data-ex="MEDS in 1 min blood pressure pill" data-country="US">💊 Medicine call in 1 min</button>
     <button type="button" data-ex="ຢາ in 1 min ຢາຄວາມດັນ" data-country="LA">🇱🇦 💊 ຢາ in 1 min</button>
+    <button type="button" data-ex="دواء in 1 min دواء الضغط" data-country="EG">🇪🇬 💊 دواء in 1 min</button>
+    <button type="button" data-ex="ما هي أعراض السكري؟" data-country="EG">🇪🇬 أعراض السكري</button>
     <button type="button" data-ex="MEDS in 1 min pastilla de la presión" data-country="MX">🇲🇽 💊 MEDS in 1 min</button>
     <button type="button" data-ex="MEDS in 1 min दवा" data-country="IN">🇮🇳 💊 MEDS in 1 min</button>
     <button type="button" data-ex="MEDS in 1 min gamot sa presyon" data-country="PH">🇵🇭 💊 MEDS in 1 min</button>
@@ -146,6 +149,11 @@
   const input = document.getElementById('text');
   const clock = document.getElementById('clock');
   const countrySel = document.getElementById('country');
+  // Link with ?from=EG (or LA, PH, ...) to open the simulator texting from that country.
+  try {
+    const from = (new URLSearchParams(location.search).get('from') || '').toUpperCase();
+    if ([...countrySel.options].some(o => o.value === from && from)) countrySel.value = from;
+  } catch (e) { /* keep the default */ }
   const guide = document.getElementById('guide');
   const ghost = document.getElementById('ghost');
   const HINTS = {
