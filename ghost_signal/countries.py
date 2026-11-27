@@ -119,7 +119,7 @@ _BY_PREFIX: dict[str, Country] = {
 
 
 def from_number(number: str | None) -> Country | None:
-    """'+201001234567' -> Egypt. None for unknown or non-phone senders."""
+    """'+8562055512345' -> Laos. None for unknown or non-phone senders."""
     digits = (number or "").strip()
     if not digits.startswith("+"):
         return None
@@ -172,7 +172,7 @@ def timezone(country: Country | None) -> str:
 
 
 def mask(number: str) -> str:
-    """'+201001234567' -> '+20*******567' for logs and screens."""
+    """'+8562055512345' -> '+85********345' for logs and screens."""
     if not number.startswith("+") or len(number) < 7:
         return number
     return number[:3] + "*" * (len(number) - 6) + number[-3:]

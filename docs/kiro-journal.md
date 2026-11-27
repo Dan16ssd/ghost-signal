@@ -50,6 +50,11 @@ An honest log of how Ghost Signal was built, for the judges and for us.
 - Many languages, not one: hand-written call scripts in en, es, fr, pt, hi, tl, ar, th
   (Lao hears Thai), AI translation for the other voiced languages; Tagalog command words.
 
+### Nov 27 - spec: every language with no AI key
+- No paid AI key for the running app. New spec `offline-languages`: Kiro writes the call scripts
+  and fixed messages for every language once, as reviewed data files; the app reads them for free.
+- Lao medicine names: a Lao -> Thai letter table so the Thai voice can say them without AI.
+
 ### Next, inside Kiro
 - [ ] Run the `language-reviewer` agent on Lao and Arabic; Danny (Lao) and a Filipino speaker (Tagalog) confirm wording.
 - [ ] Run `gateway-auditor` before the first deploy.
