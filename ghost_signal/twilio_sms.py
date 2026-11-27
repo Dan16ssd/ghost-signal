@@ -50,7 +50,8 @@ def place_call(to: str, twiml_url: str) -> None:
     url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.twilio_account_sid}/Calls.json"
     r = httpx.post(
         url,
-        data={"To": to, "From": settings.twilio_from_number, "Url": twiml_url, "Method": "POST", "Timeout": "30"},
+        # Only To/From/Url: Twilio trial accounts reject extra parameters (Url is fetched with POST by default).
+        data={"To": to, "From": settings.twilio_from_number, "Url": twiml_url},
         auth=(settings.twilio_account_sid, settings.twilio_auth_token),
         timeout=15,
     )

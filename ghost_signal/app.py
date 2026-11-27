@@ -181,6 +181,28 @@ def inbox(request: Request) -> dict:
     return {"messages": [answer.due_text(r) for r in store.inbox(sender)], "calls": calls}
 
 
+class RealCall(BaseModel):
+    number: str = Field(max_length=20)
+    what: str = Field(default="", max_length=60)
+
+
+@app.post("/api/real-call")
+def real_call(body: RealCall) -> dict:
+    """Demo: ring a real phone in about 1 minute, like 'MEDS in 1 min ...' texted from that phone.
+
+    Only numbers listed in GHOST_DEMO_NUMBERS can be called, so this cannot be used to call strangers.
+    """
+    number = body.number.strip().replace(" ", "")
+    if not settings.demo_numbers or number not in settings.demo_numbers:
+        raise HTTPException(status_code=403, detail="This number is not on the demo list (GHOST_DEMO_NUMBERS).")
+    what = body.what.strip() or "test pill"
+    r = answer.handle(f"MEDS in 1 min {what}", sender=number)
+    country = countries.from_number(number)
+    lang = country.lang if country and meds.can_call(country.lang) else r.lang
+    store.set_meds_lang(number, lang)  # the call speaks the phone's country language (Laos -> Lao, heard in Thai)
+    return {"reply": r.text, "lang": lang, "kind": r.kind}
+
+
 class Press(BaseModel):
     digit: str = Field(max_length=1)
 

@@ -35,6 +35,10 @@ class Settings:
     # Medicine calls (Twilio Voice). Off = SMS reminders only.
     voice_calls: bool = _flag("GHOST_VOICE_CALLS", True)
     max_calls_per_day: int = int(os.getenv("GHOST_MAX_CALLS_PER_DAY", "200"))
+    # Real phones the web simulator may ring ("Ring my real phone"), e.g. "+8562055512345,+8562099988877".
+    # Empty = the button is off. Only these numbers can ever be called this way.
+    demo_numbers: frozenset[str] = frozenset(
+        n.strip().replace(" ", "") for n in os.getenv("GHOST_DEMO_NUMBERS", "").split(",") if n.strip())
     # State (opt-outs, limits, reminders)
     db_path: str = os.getenv("GHOST_DB", "ghost_signal.db")
     # Twilio

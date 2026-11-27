@@ -1,5 +1,6 @@
 """MEDS: daily medicine calls with press-1 confirmation, retries and a family alert."""
 
+import dataclasses
 import re
 import time
 from datetime import datetime, timedelta, timezone
@@ -262,3 +263,17 @@ def test_meds_lang_changes_the_call_language():
     answer.handle("MEDS 8am losartan", sender="+8562055500002")
     r = answer.handle("MEDS LANG en", sender="+8562055500002")
     assert r.lang == "en" and store.meds_of("+8562055500002")[-1].lang == "en"
+
+
+def test_real_call_only_rings_listed_numbers(monkeypatch):
+    c = TestClient(appmod.app)
+    monkeypatch.setattr(appmod, "settings", dataclasses.replace(appmod.settings, demo_numbers=frozenset({"+8562055512345"})))
+    assert c.post("/api/real-call", json={"number": "+8562099999999"}).status_code == 403
+    r = c.post("/api/real-call", json={"number": "+856 20 5551 2345"})
+    assert r.status_code == 200 and r.json()["lang"] == "lo"
+    assert store.meds_of("+8562055512345")[-1].what == "test pill"
+
+
+def test_real_call_off_without_list(monkeypatch):
+    monkeypatch.setattr(appmod, "settings", dataclasses.replace(appmod.settings, demo_numbers=frozenset()))
+    assert TestClient(appmod.app).post("/api/real-call", json={"number": "+8562055512345"}).status_code == 403

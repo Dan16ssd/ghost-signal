@@ -41,6 +41,9 @@
   .send { background: #3f6b2a; }
   .examples { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; max-width: 34rem; }
   .examples button { padding: 6px 12px; font-size: .85rem; }
+  .realcall { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; justify-content: center; max-width: 34rem; font-size: .9rem; }
+  .realcall input { padding: 6px 10px; min-width: 11rem; }
+  .realcall .meta { flex-basis: 100%; text-align: center; }
   .blink { animation: blink 1s steps(2, start) infinite; }
   @keyframes blink { to { visibility: hidden; } }
   .from { display: flex; gap: 8px; align-items: center; color: var(--muted); font-size: .9rem; }
@@ -129,6 +132,13 @@
     <button type="button" data-ex="START">START</button>
   </div>
 
+  <form class="realcall" id="realcall" aria-label="Ring a real phone">
+    <label for="realnum">📞 Ring my real phone (demo):</label>
+    <input id="realnum" type="tel" placeholder="+856 20 ..." autocomplete="tel">
+    <button type="submit">Call me in 1 min</button>
+    <div id="realmsg" class="meta" role="status"></div>
+  </form>
+
   <footer>Answers come from Wikipedia, Open-Meteo and ExchangeRate-API. Made for older people with basic phones; filmed in Laos; works in 50+ languages. Your phone number tells it your country, so RATE shows your money. For health questions, always see a health worker.</footer>
 
 <script>
@@ -190,6 +200,17 @@
   }
 
   document.getElementById('form').addEventListener('submit', e => { e.preventDefault(); send(input.value); });
+  document.getElementById('realcall').addEventListener('submit', async e => {
+    e.preventDefault();
+    const msg = document.getElementById('realmsg');
+    msg.textContent = 'Asking the ghost to call…';
+    try {
+      const r = await fetch('/api/real-call', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: document.getElementById('realnum').value }) });
+      const data = await r.json();
+      msg.textContent = r.ok ? '✅ ' + data.reply + ' (answer, then press 1)' : '⛔ ' + (data.detail || 'Not allowed');
+    } catch (err) { msg.textContent = 'No signal. Try again.'; }
+  });
   document.getElementById('send').addEventListener('click', () => send(input.value));
   document.querySelectorAll('[data-ex]').forEach(b => b.addEventListener('click', () => {
     if (b.dataset.country) countrySel.value = b.dataset.country;
