@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import re
 import time
 from pathlib import Path
 
@@ -245,6 +246,32 @@ def _check_twilio(request: Request, params: dict[str, str]) -> None:
         raise HTTPException(status_code=403, detail="bad signature")
 
 
+_verified_calls: set[str] = set()
+
+
+def _check_twilio_call(request: Request, params: dict[str, str], number: str) -> None:
+    """Voice webhooks. Twilio trial accounts send them unsigned, so when the signature header is
+    missing we ask Twilio's API instead: the CallSid must be a live call of this account to `number`."""
+    if not settings.twilio_auth_token or request.headers.get("X-Twilio-Signature"):
+        _check_twilio(request, params)
+        return
+    sid = params.get("CallSid", "")
+    if sid in _verified_calls:
+        return
+    if re.fullmatch(r"CA[0-9a-f]{32}", sid):
+        try:
+            call = twilio_sms.get_call(sid)
+        except Exception:  # noqa: BLE001
+            call = None
+            log.exception("Could not check call %s with Twilio", sid[:8])
+        if (call and call.get("account_sid") == settings.twilio_account_sid and call.get("to") == number
+                and call.get("status") in ("queued", "ringing", "in-progress")):
+            _verified_calls.add(sid)
+            return
+    log.warning("Unsigned voice request on %s with an unknown call %s", request.url.path, sid[:8])
+    raise HTTPException(status_code=403, detail="unknown call")
+
+
 def _explain_bad_signature(request: Request, url: str, params: dict[str, str], signature: str) -> None:
     """Log why a Twilio signature failed (no secrets): which URL form, if any, would have matched."""
     tok = settings.twilio_auth_token
@@ -271,11 +298,12 @@ def _voice(xml: str) -> Response:
 @app.post("/voice/dose/{dose_id}")
 async def voice_dose(dose_id: int, request: Request) -> Response:
     """Twilio asks what to say when the person answers a medicine call."""
-    _check_twilio(request, {k: str(v) for k, v in (await request.form()).items()})
+    params = {k: str(v) for k, v in (await request.form()).items()}
     d = store.dose(dose_id)
     m = store.med(d.med_id) if d else None
     if m is None:
         return _voice(twilio_sms.voice_twiml([], "en-US", "Polly.Joanna"))
+    _check_twilio_call(request, params, m.number)
     script, say_lang, voice = answer.call_voice(m.lang)
     if d.state != "waiting":
         return _voice(twilio_sms.voice_twiml([script["thanks"]], say_lang, voice))
@@ -290,11 +318,11 @@ async def voice_dose(dose_id: int, request: Request) -> Response:
 async def voice_answer(dose_id: int, request: Request) -> Response:
     """The key the person pressed during the call."""
     params = {k: str(v) for k, v in (await request.form()).items()}
-    _check_twilio(request, params)
     d = store.dose(dose_id)
     m = store.med(d.med_id) if d else None
     if m is None:
         return _voice(twilio_sms.voice_twiml([], "en-US", "Polly.Joanna"))
+    _check_twilio_call(request, params, m.number)
     script, say_lang, voice = answer.call_voice(m.lang)
     if params.get("Digits") == "1":
         answer.confirm_dose(dose_id)

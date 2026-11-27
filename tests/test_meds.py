@@ -16,6 +16,8 @@ from tests.test_answer_and_app import _FakeClaude, offline  # noqa: F401
 
 EGYPT = "+201001234567"
 LAOS = "+8562055512345"
+US = "+12025550123"
+CHECK_CALL = appmod._check_twilio_call  # the real check, for the trial tests
 LIVE = Settings(twilio_account_sid="AC1", twilio_auth_token="tok", twilio_from_number="+15550000000",
                 public_base_url="https://ghost.example")
 
@@ -24,6 +26,7 @@ LIVE = Settings(twilio_account_sid="AC1", twilio_auth_token="tok", twilio_from_n
 def no_signature_check(monkeypatch):
     """Signatures have their own tests; here the fake Twilio calls the voice pages directly."""
     monkeypatch.setattr(appmod, "_check_twilio", lambda request, params: None)
+    monkeypatch.setattr(appmod, "_check_twilio_call", lambda request, params, number: None)
 
 
 def test_parse_times_and_medicine():
@@ -277,3 +280,34 @@ def test_real_call_only_rings_listed_numbers(monkeypatch):
 def test_real_call_off_without_list(monkeypatch):
     monkeypatch.setattr(appmod, "settings", dataclasses.replace(appmod.settings, demo_numbers=frozenset()))
     assert TestClient(appmod.app).post("/api/real-call", json={"number": "+8562055512345"}).status_code == 403
+
+
+def _trial_live(monkeypatch, call):
+    live = dataclasses.replace(LIVE, twilio_auth_token="tok")
+    monkeypatch.setattr(appmod, "settings", live)
+    monkeypatch.setattr(appmod, "_check_twilio_call", CHECK_CALL)
+    monkeypatch.setattr(twilio_sms, "place_call", lambda to, url: None)
+    monkeypatch.setattr(twilio_sms, "get_call", lambda sid: call)
+    answer.handle("MEDS 8am test pill", sender=US)
+    dose_id = _due_now(US)
+    appmod.run_doses()
+    return dose_id
+
+
+SID = "CA" + "0" * 32
+
+
+def test_unsigned_trial_voice_request_checked_with_twilio_api(monkeypatch):
+    dose_id = _trial_live(monkeypatch, {"account_sid": "AC1", "to": US, "status": "in-progress"})
+    c = TestClient(appmod.app)
+    assert "<Gather" in c.post(f"/voice/dose/{dose_id}", data={"CallSid": SID}).text
+    assert "Thank you" in c.post(f"/voice/answer/{dose_id}", data={"CallSid": SID, "Digits": "1"}).text
+
+
+def test_unsigned_voice_request_for_unknown_call_refused(monkeypatch):
+    appmod._verified_calls.clear()
+    dose_id = _trial_live(monkeypatch, {"account_sid": "AC1", "to": "+15559999999", "status": "in-progress"})
+    c = TestClient(appmod.app)
+    assert c.post(f"/voice/dose/{dose_id}", data={"CallSid": "CA" + "1" * 32}).status_code == 403
+    assert c.post(f"/voice/answer/{dose_id}", data={"CallSid": "bad", "Digits": "1"}).status_code == 403
+    assert store.dose(dose_id).state == "waiting"

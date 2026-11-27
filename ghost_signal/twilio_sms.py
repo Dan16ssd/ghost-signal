@@ -45,6 +45,13 @@ def send_sms(to: str, body: str) -> None:
     r.raise_for_status()
 
 
+def get_call(call_sid: str) -> dict | None:
+    """The call as Twilio's API sees it (None if this account has no such call)."""
+    url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.twilio_account_sid}/Calls/{call_sid}.json"
+    r = httpx.get(url, auth=(settings.twilio_account_sid, settings.twilio_auth_token), timeout=10)
+    return r.json() if r.status_code == 200 else None
+
+
 def place_call(to: str, twiml_url: str) -> None:
     """Start an outgoing voice call; Twilio fetches the call's TwiML from `twiml_url` (POST)."""
     url = f"https://api.twilio.com/2010-04-01/Accounts/{settings.twilio_account_sid}/Calls.json"
