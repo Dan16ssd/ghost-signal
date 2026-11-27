@@ -239,9 +239,29 @@ def _check_twilio(request: Request, params: dict[str, str]) -> None:
     if not settings.twilio_auth_token:
         return
     url = (settings.public_base_url + request.url.path) if settings.public_base_url else str(request.url)
-    if not twilio_sms.signature_ok(settings.twilio_auth_token, url, params,
-                                   request.headers.get("X-Twilio-Signature", "")):
+    signature = request.headers.get("X-Twilio-Signature", "")
+    if not twilio_sms.signature_ok(settings.twilio_auth_token, url, params, signature):
+        _explain_bad_signature(request, url, params, signature)
         raise HTTPException(status_code=403, detail="bad signature")
+
+
+def _explain_bad_signature(request: Request, url: str, params: dict[str, str], signature: str) -> None:
+    """Log why a Twilio signature failed (no secrets): which URL form, if any, would have matched."""
+    tok = settings.twilio_auth_token
+    host = url.split("/")[2] if "://" in url else ""
+    tries = {
+        "url+query": url + (f"?{request.url.query}" if request.url.query else ""),
+        "port443": url.replace(host, f"{host}:443", 1) if host else url,
+        "request.url": str(request.url),
+        "http": url.replace("https://", "http://", 1),
+    }
+    matched = [name for name, u in tries.items() if twilio_sms.signature_ok(tok, u, params, signature)]
+    if not matched and twilio_sms.signature_ok(tok, url, {}, signature):
+        matched = ["url-without-params"]
+    log.warning("Twilio signature failed on %s: header=%s, content-type=%s, %d params %s, query=%r, "
+                "a different form matches: %s", request.url.path, "yes" if signature else "MISSING",
+                request.headers.get("content-type", ""), len(params), sorted(params)[:40],
+                request.url.query[:200], matched or "none")
 
 
 def _voice(xml: str) -> Response:
